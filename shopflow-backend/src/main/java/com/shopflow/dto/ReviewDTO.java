@@ -12,6 +12,7 @@ public class ReviewDTO {
     private Long customerId;
     private String customerName; // Pratique pour l'affichage
     private Long productId;
+    private String productNom;
     private Integer note;
     private String commentaire;
     private LocalDateTime dateCreation;

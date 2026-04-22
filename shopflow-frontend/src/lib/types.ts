@@ -123,6 +123,7 @@ export interface Review {
   customerId: number;
   customerName: string;
   productId: number;
+  productNom?: string;
   note: number;
   commentaire: string;
   dateCreation?: string;

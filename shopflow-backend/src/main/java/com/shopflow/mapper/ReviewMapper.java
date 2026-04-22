@@ -12,6 +12,7 @@ public interface ReviewMapper {
 
     @Mapping(target = "customerId", source = "customer.id")
     @Mapping(target = "productId", source = "product.id")
+    @Mapping(target = "productNom", source = "product.nom")
     @Mapping(target = "customerName", expression = "java(review.getCustomer().getPrenom() + ' ' + review.getCustomer().getNom())")
     ReviewDTO toDto(Review review);
 
