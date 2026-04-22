@@ -2,12 +2,14 @@ package com.shopflow.controller;
 
 import com.shopflow.dto.UserCreateDTO;
 import com.shopflow.dto.UserDTO;
+import com.shopflow.security.UserDetailsImpl;
 import com.shopflow.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -46,14 +48,23 @@ public class UserController {
 
     @PutMapping("/{id}/active")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<UserDTO> setActive(@PathVariable Long id, @RequestBody Map<String, Boolean> body) {
+    public ResponseEntity<UserDTO> setActive(@PathVariable Long id,
+                                             @RequestBody Map<String, Boolean> body,
+                                             @AuthenticationPrincipal UserDetailsImpl current) {
         boolean actif = Boolean.TRUE.equals(body.get("actif"));
+        if (!actif && current != null && id.equals(current.getId())) {
+            throw new IllegalStateException("Vous ne pouvez pas désactiver votre propre compte.");
+        }
         return ResponseEntity.ok(userService.setActive(id, actif));
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteUser(@PathVariable Long id,
+                                           @AuthenticationPrincipal UserDetailsImpl current) {
+        if (current != null && id.equals(current.getId())) {
+            throw new IllegalStateException("Vous ne pouvez pas supprimer votre propre compte.");
+        }
         userService.deleteUser(id);
         return ResponseEntity.noContent().build();
     }
