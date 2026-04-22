@@ -47,6 +47,14 @@ public class UserService {
     }
 
     @Transactional
+    public UserDTO setActive(Long id, boolean actif) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
+        user.setActif(actif);
+        return userMapper.toDto(userRepository.save(user));
+    }
+
+    @Transactional
     public void deleteUser(Long id) {
         if (!userRepository.existsById(id)) {
             throw new ResourceNotFoundException("User not found with id: " + id);

@@ -23,6 +23,7 @@ public class DatabaseSeeder implements CommandLineRunner {
     private final ProductRepository productRepository;
     private final AddressRepository addressRepository;
     private final CouponRepository couponRepository;
+    private final ReviewRepository reviewRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Override
@@ -192,7 +193,33 @@ public class DatabaseSeeder implements CommandLineRunner {
 
         couponRepository.saveAll(List.of(welcome, fixe));
 
-        log.info("Initialisation terminée : {} utilisateurs, {} produits, {} coupons.",
-                userRepository.count(), productRepository.count(), couponRepository.count());
+        Review approvedReview = Review.builder()
+                .customer(customer)
+                .product(headset)
+                .note(5)
+                .commentaire("Qualité audio incroyable, vraiment le meilleur casque que j'ai essayé.")
+                .approuve(true)
+                .build();
+
+        Review pendingReview1 = Review.builder()
+                .customer(customer)
+                .product(laptop)
+                .note(4)
+                .commentaire("Super machine, un peu chère mais elle vaut le coup. À modérer rapidement svp !")
+                .approuve(false)
+                .build();
+
+        Review pendingReview2 = Review.builder()
+                .customer(customer)
+                .product(console)
+                .note(2)
+                .commentaire("Livraison longue et emballage abîmé. À vérifier.")
+                .approuve(false)
+                .build();
+
+        reviewRepository.saveAll(List.of(approvedReview, pendingReview1, pendingReview2));
+
+        log.info("Initialisation terminée : {} utilisateurs, {} produits, {} coupons, {} avis.",
+                userRepository.count(), productRepository.count(), couponRepository.count(), reviewRepository.count());
     }
 }
