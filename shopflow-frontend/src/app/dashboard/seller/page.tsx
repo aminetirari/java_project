@@ -128,7 +128,7 @@ export default function SellerDashboardPage() {
                   </div>
                   <div className="flex items-center gap-3">
                     <OrderStatusBadge status={o.status} />
-                    <span className="font-semibold">{o.total.toFixed(2)} €</span>
+                    <span className="font-semibold">{(o.total ?? 0).toFixed(2)} €</span>
                   </div>
                 </li>
               ))}

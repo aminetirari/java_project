@@ -44,13 +44,11 @@ public class DashboardService {
         data.put("nbCommandesEnCours", orderRepository.countByStatut(OrderStatus.PROCESSING)
                 + orderRepository.countByStatut(OrderStatus.PAID) + orderRepository.countByStatut(OrderStatus.PAYE));
         data.put("nbUtilisateurs", userRepository.count());
-        data.put("topProduits", productRepository.findTopSelling(PageRequest.of(0, 5)).stream().map(row -> {
-            Map<String, Object> m = new HashMap<>();
-            m.put("product", productMapper.toDto((com.shopflow.entity.Product) row[0]));
-            m.put("quantiteVendue", row[1]);
-            return m;
-        }).collect(Collectors.toList()));
-        data.put("commandesRecentes", orderRepository.findTop10ByOrderByDateCommandeDesc().stream()
+        data.put("nbProduits", productRepository.count());
+        data.put("topProduits", productRepository.findTopSelling(PageRequest.of(0, 5)).stream()
+                .map(row -> productMapper.toDto((com.shopflow.entity.Product) row[0]))
+                .collect(Collectors.toList()));
+        data.put("dernieresCommandes", orderRepository.findTop10ByOrderByDateCommandeDesc().stream()
                 .map(orderMapper::toDto).collect(Collectors.toList()));
         return data;
     }
@@ -65,14 +63,16 @@ public class DashboardService {
         SellerProfile seller = sellerProfileRepository.findByUser(user)
                 .orElseThrow(() -> new ResourceNotFoundException("Profil vendeur introuvable. Contactez l'admin pour activer votre boutique."));
 
+        List<com.shopflow.entity.Order> sellerOrders = orderRepository.findBySellerProfileId(seller.getId());
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("revenus", orderRepository.revenueBySeller(seller.getId()));
+        data.put("nbCommandes", sellerOrders.size());
         data.put("commandesEnAttente", orderRepository.countBySellerAndStatut(seller.getId(), OrderStatus.PENDING)
                 + orderRepository.countBySellerAndStatut(seller.getId(), OrderStatus.PAID));
-        data.put("alertesStock", productRepository.findTop10BySellerIdAndActifTrueAndStockLessThanEqualOrderByStockAsc(seller.getId(), 5)
+        data.put("produitsEnRupture", productRepository.findTop10BySellerIdAndActifTrueAndStockLessThanEqualOrderByStockAsc(seller.getId(), 5)
                 .stream().map(productMapper::toDto).collect(Collectors.toList()));
-        data.put("mesProduits", productRepository.findBySellerIdAndActifTrue(seller.getId()).size());
-        data.put("commandesRecentes", orderRepository.findBySellerProfileId(seller.getId()).stream()
+        data.put("nbProduits", productRepository.findBySellerIdAndActifTrue(seller.getId()).size());
+        data.put("commandesRecentes", sellerOrders.stream()
                 .limit(10).map(orderMapper::toDto).collect(Collectors.toList()));
         return data;
     }
