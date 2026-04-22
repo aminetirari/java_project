@@ -1,0 +1,45 @@
+spring:
+  application:
+    name: shopflow-backend
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 20MB
+  datasource:
+    url: jdbc:h2:mem:shopflow;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driverClassName: org.h2.Driver
+    username: sa
+    password: password
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+
+jwt:
+  secret: YmFzZTY0LWVuY29kZWQtc2VjcmV0LWtleS1zaG9wZmxvdy10ZXN0LW11c3QtYmUtYXRfbGVhc3QtMjU2LWJpdHM=
+  expiration: 86400000 
+  refreshExpiration: 604800000
+
+stripe:
+  api:
+    secret-key: ${STRIPE_SECRET_KEY:}
+    public-key: ${STRIPE_PUBLIC_KEY:pk_test_TYooMQauvdEDq54NiTphI7jx}
+
+app:
+  upload:
+    dir: uploads/images
