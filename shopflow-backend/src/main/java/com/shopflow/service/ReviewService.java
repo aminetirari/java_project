@@ -4,6 +4,7 @@ import com.shopflow.dto.ReviewCreateDTO;
 import com.shopflow.dto.ReviewDTO;
 import com.shopflow.entity.Product;
 import com.shopflow.entity.Review;
+import com.shopflow.entity.Role;
 import com.shopflow.entity.User;
 import com.shopflow.exception.ResourceNotFoundException;
 import com.shopflow.mapper.ReviewMapper;
@@ -33,6 +34,26 @@ public class ReviewService {
         return reviewMapper.toDtoList(reviewRepository.findByProductIdAndApprouveTrue(productId));
     }
 
+    @Transactional(readOnly = true)
+    public List<ReviewDTO> getAllReviewsForProduct(Long productId) {
+        if (!productRepository.existsById(productId)) {
+            throw new ResourceNotFoundException("Produit introuvable");
+        }
+        return reviewMapper.toDtoList(reviewRepository.findByProductId(productId));
+    }
+
+    @Transactional(readOnly = true)
+    public List<ReviewDTO> getPending() {
+        return reviewMapper.toDtoList(reviewRepository.findByApprouveFalse());
+    }
+
+    @Transactional(readOnly = true)
+    public List<ReviewDTO> getMyReviews(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
+        return reviewMapper.toDtoList(reviewRepository.findByCustomerId(user.getId()));
+    }
+
     @Transactional
     public ReviewDTO addReview(String email, Long productId, ReviewCreateDTO dto) {
         User user = userRepository.findByEmail(email)
@@ -41,21 +62,26 @@ public class ReviewService {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Produit introuvable"));
 
-        // Règles métiers : Un seul avis par client et par produit (simplifié ici avec Repository)
         if (reviewRepository.existsByCustomerIdAndProductId(user.getId(), productId)) {
             throw new IllegalStateException("Vous avez déjà laissé un avis pour ce produit.");
         }
 
-        // TODO : Vérifier également que l'utilisateur a bien acheté le produit (statut PAYE ou DELIVERED).
-        
         Review review = Review.builder()
                 .customer(user)
                 .product(product)
                 .note(dto.getNote())
                 .commentaire(dto.getCommentaire())
-                .approuve(true) // Auto-approuvé pour le MVP
+                .approuve(true)
                 .build();
 
+        return reviewMapper.toDto(reviewRepository.save(review));
+    }
+
+    @Transactional
+    public ReviewDTO approve(Long reviewId) {
+        Review review = reviewRepository.findById(reviewId)
+                .orElseThrow(() -> new ResourceNotFoundException("Avis introuvable"));
+        review.setApprouve(true);
         return reviewMapper.toDto(reviewRepository.save(review));
     }
 
@@ -67,11 +93,16 @@ public class ReviewService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
 
-        // Autoriser la suppression seulement si c'est le sien, ou on est ADMIN (pas montré ici)
-        if (!review.getCustomer().getId().equals(user.getId())) {
+        if (!review.getCustomer().getId().equals(user.getId()) && user.getRole() != Role.ADMIN) {
             throw new IllegalArgumentException("Vous n'êtes pas autorisé à supprimer cet avis.");
         }
 
         reviewRepository.delete(review);
+    }
+
+    @Transactional(readOnly = true)
+    public Double averageNote(Long productId) {
+        Double v = reviewRepository.averageNoteForProduct(productId);
+        return v == null ? 0.0 : v;
     }
 }

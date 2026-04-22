@@ -1,153 +1,223 @@
-'use client';
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useCartStore } from '@/store/cartStore';
-import { useAuthStore } from '@/store/authStore';
-import api from '@/lib/api';
-import Link from 'next/link';
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { api, extractErrorMessage } from "@/lib/api";
+import type { Address, Cart } from "@/lib/types";
+import { useAuthStore } from "@/store/authStore";
+import { useCartStore } from "@/store/cartStore";
+import Loader from "@/components/Loader";
+import ErrorBox from "@/components/ErrorBox";
+import EmptyState from "@/components/EmptyState";
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { items, getTotalPrice, clearCart } = useCartStore();
-  const { user, token } = useAuthStore();
-  const [mounted, setMounted] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
-  
-  // Champs d'adresse
-  const [adresse, setAdresse] = useState('');
-  const [ville, setVille] = useState('');
-  const [codePostal, setCodePostal] = useState('');
-  const [pays, setPays] = useState('France');
+  const token = useAuthStore((s) => s.token);
+  const { cart, setCart } = useCartStore();
+  const [addresses, setAddresses] = useState<Address[]>([]);
+  const [selectedAddress, setSelectedAddress] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const [rue, setRue] = useState("");
+  const [ville, setVille] = useState("");
+  const [codePostal, setCodePostal] = useState("");
+  const [pays, setPays] = useState("France");
 
   useEffect(() => {
-    setMounted(true);
     if (!token) {
-      router.push('/login?redirect=/checkout');
+      router.replace("/login?redirect=/checkout");
+      return;
     }
-  }, [token, router]);
+    Promise.all([
+      api.get<Cart>("/cart"),
+      api.get<Address[]>("/addresses"),
+    ])
+      .then(([c, a]) => {
+        setCart(c.data);
+        setAddresses(a.data);
+        const principal = a.data.find((x) => x.principal) ?? a.data[0];
+        if (principal) setSelectedAddress(principal.id);
+      })
+      .catch((e) => setError(extractErrorMessage(e)))
+      .finally(() => setLoading(false));
+  }, [token, router, setCart]);
 
-  if (!mounted) return null;
-  if (!token) return <div className="p-8 text-center">Redirection vers la connexion...</div>;
-  if (items.length === 0 && !success) return <div className="p-8 text-center">Votre panier est vide.</div>;
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const addAddress = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setError('');
-
+    setBusy(true);
+    setError(null);
     try {
-      // 1. Créer l'adresse via l'API (nécessite que /api/addresses existe ou simulé)
-      // 2. Créer la commande
-      const orderPayload = {
-        customerId: user.id || 1, // Fallback safely
-        lignesIds: items.map(item => item.id), // Adaptation selon le DTO attendu par le backend
-        totalAmount: getTotalPrice(),
-        address: `${adresse}, ${codePostal} ${ville}, ${pays}`
-      };
-
-      await api.post('/orders', orderPayload);
-      
-      // Simulation d'un paiement réussi (pourrait être remplacé par Stripe plus tard)
-      setSuccess(true);
-      clearCart();
-      setTimeout(() => router.push('/profile'), 3000);
-      
-    } catch (err: any) {
-      console.error("Erreur de commande:", err);
-      setError(err.response?.data?.message || "Erreur lors de la validation de la commande.");
+      const { data } = await api.post<Address>("/addresses", {
+        rue,
+        ville,
+        codePostal,
+        pays,
+        principal: addresses.length === 0,
+      });
+      setAddresses((prev) => [...prev, data]);
+      setSelectedAddress(data.id);
+      setRue("");
+      setVille("");
+      setCodePostal("");
+    } catch (err) {
+      setError(extractErrorMessage(err));
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
   };
 
-  if (success) {
+  const placeOrder = async () => {
+    if (!selectedAddress) {
+      setError("Veuillez choisir ou ajouter une adresse de livraison");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const { data } = await api.post("/orders", { addressId: selectedAddress });
+      setCart({ ...cart!, lignes: [], sousTotal: 0, remise: 0, totalCart: 0 });
+      router.push(`/profile/orders/${data.id}`);
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (loading) return <Loader />;
+  if (!cart || cart.lignes.length === 0)
     return (
-      <div className="max-w-2xl mx-auto py-16 text-center">
-        <div className="bg-green-50 p-12 rounded-2xl border border-green-100">
-          <span className="text-6xl mb-4 block">✅</span>
-          <h1 className="text-3xl font-bold text-green-900 mb-4">Commande confirmée !</h1>
-          <p className="text-green-700">Merci pour votre achat. Vous allez être redirigé vers votre profil...</p>
-        </div>
-      </div>
+      <EmptyState
+        title="Votre panier est vide"
+        description="Ajoutez des produits avant de passer commande."
+        ctaHref="/products"
+        ctaLabel="Voir le catalogue"
+      />
     );
-  }
 
   return (
-    <div className="max-w-4xl mx-auto py-8">
-      <h1 className="text-3xl font-extrabold text-gray-900 mb-8">Finaliser la commande</h1>
-      
-      {error && (
-        <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-md border border-red-100">
-          {error}
-        </div>
-      )}
+    <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+      <section className="space-y-6">
+        <h1 className="section-title">Finaliser la commande</h1>
+        <ErrorBox message={error ?? undefined} />
 
-      <div className="flex flex-col md:flex-row gap-8">
-        <div className="flex-grow">
-          <form onSubmit={handleSubmit} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-            <h2 className="text-xl font-bold text-gray-800 mb-4">Adresse de livraison</h2>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Adresse postale</label>
-              <input type="text" required value={adresse} onChange={e => setAdresse(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-md" placeholder="123 Rue de la République" />
+        <div className="card space-y-3 p-5">
+          <h2 className="text-lg font-semibold">Adresse de livraison</h2>
+          {addresses.length === 0 ? (
+            <p className="text-sm text-slate-500">
+              Vous n&apos;avez pas encore d&apos;adresse enregistrée.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {addresses.map((a) => (
+                <label
+                  key={a.id}
+                  className={`flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-2 text-sm ${
+                    selectedAddress === a.id
+                      ? "border-indigo-600 bg-indigo-50"
+                      : "border-slate-200 hover:border-slate-300"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="address"
+                    className="mt-1"
+                    checked={selectedAddress === a.id}
+                    onChange={() => setSelectedAddress(a.id)}
+                  />
+                  <div>
+                    <div className="font-medium">{a.rue}</div>
+                    <div className="text-slate-500">
+                      {a.codePostal} {a.ville}, {a.pays}
+                    </div>
+                  </div>
+                </label>
+              ))}
             </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Code postal</label>
-                <input type="text" required value={codePostal} onChange={e => setCodePostal(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-md" placeholder="75001" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Ville</label>
-                <input type="text" required value={ville} onChange={e => setVille(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-md" placeholder="Paris" />
-              </div>
-            </div>
+          )}
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Pays</label>
-              <input type="text" required value={pays} onChange={e => setPays(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-md" />
-            </div>
-
-            <hr className="my-6" />
-            
-            <h2 className="text-xl font-bold text-gray-800 mb-4">Paiement</h2>
-            <div className="p-4 bg-gray-50 border border-gray-200 rounded-md">
-              <p className="text-gray-600 text-sm">Le paiement par carte bancaire (Stripe) sera initialisé après confirmation.</p>
-            </div>
-
-            <button 
-              type="submit" 
-              disabled={loading}
-              className="w-full bg-indigo-600 text-white font-bold py-4 rounded-md hover:bg-indigo-700 transition disabled:bg-indigo-400 mt-6"
-            >
-              {loading ? 'Traitement en cours...' : `Payer ${getTotalPrice().toFixed(2)} €`}
+          <form onSubmit={addAddress} className="grid gap-2 border-t border-slate-200 pt-4 sm:grid-cols-2">
+            <h3 className="col-span-full text-sm font-semibold text-slate-700">
+              Ajouter une adresse
+            </h3>
+            <input
+              className="input"
+              placeholder="Rue"
+              value={rue}
+              onChange={(e) => setRue(e.target.value)}
+              required
+            />
+            <input
+              className="input"
+              placeholder="Ville"
+              value={ville}
+              onChange={(e) => setVille(e.target.value)}
+              required
+            />
+            <input
+              className="input"
+              placeholder="Code postal"
+              value={codePostal}
+              onChange={(e) => setCodePostal(e.target.value)}
+              required
+            />
+            <input
+              className="input"
+              placeholder="Pays"
+              value={pays}
+              onChange={(e) => setPays(e.target.value)}
+              required
+            />
+            <button type="submit" disabled={busy} className="btn-outline col-span-full">
+              Enregistrer l&apos;adresse
             </button>
           </form>
         </div>
+      </section>
 
-        <div className="w-full md:w-80 shrink-0">
-          <div className="bg-gray-50 p-6 rounded-2xl border border-gray-200">
-            <h2 className="font-bold text-gray-800 mb-4">Votre panier</h2>
-            <ul className="space-y-3 mb-4">
-              {items.map(item => (
-                <li key={item.id} className="flex justify-between text-sm">
-                  <span className="text-gray-600 w-2/3 truncate">{item.quantity}x {item.name}</span>
-                  <span className="font-medium">{(item.price * item.quantity).toFixed(2)} €</span>
-                </li>
-              ))}
-            </ul>
-            <div className="border-t border-gray-300 pt-3 flex justify-between items-center font-bold text-lg">
-              <span>Total</span>
-              <span>{getTotalPrice().toFixed(2)} €</span>
+      <aside className="card sticky top-20 h-fit space-y-3 p-5">
+        <h2 className="text-lg font-semibold">Votre commande</h2>
+        <ul className="divide-y divide-slate-100 text-sm">
+          {cart.lignes.map((l) => (
+            <li key={l.id} className="flex justify-between py-2">
+              <span className="truncate pr-2">
+                {l.productNom} × {l.quantite}
+              </span>
+              <span className="whitespace-nowrap">{l.sousTotal.toFixed(2)} €</span>
+            </li>
+          ))}
+        </ul>
+        <div className="space-y-1 border-t border-slate-200 pt-2 text-sm">
+          <div className="flex justify-between">
+            <span>Sous-total</span>
+            <span>{cart.sousTotal.toFixed(2)} €</span>
+          </div>
+          {cart.remise > 0 && (
+            <div className="flex justify-between text-emerald-600">
+              <span>Remise</span>
+              <span>-{cart.remise.toFixed(2)} €</span>
             </div>
-            <Link href="/cart" className="text-indigo-600 text-sm mt-4 inline-block hover:underline">
-              Modifier le panier
-            </Link>
+          )}
+          <div className="flex justify-between text-base font-bold">
+            <span>Total</span>
+            <span>{cart.totalCart.toFixed(2)} €</span>
           </div>
         </div>
-      </div>
+        <button
+          type="button"
+          onClick={placeOrder}
+          disabled={busy || !selectedAddress}
+          className="btn-primary w-full"
+        >
+          {busy ? "Traitement..." : "Confirmer la commande"}
+        </button>
+        <Link href="/cart" className="block text-center text-sm text-slate-500 hover:text-indigo-600">
+          ← Modifier le panier
+        </Link>
+      </aside>
     </div>
   );
 }

@@ -1,70 +1,252 @@
-import api from '@/lib/api';
-import { notFound } from 'next/navigation';
-import AddToCartButton from '@/components/AddToCartButton';
-import Link from 'next/link';
+"use client";
 
-async function getProduct(id: string) {
-  try {
-    const response = await api.get(`/products/${id}`);
-    return response.data;
-  } catch (error: any) {
-    if (error.response?.status === 404) return null;
-    console.error("Error fetching product", error.message);
-    return null;
-  }
-}
+import { useEffect, useState, use } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import { api, extractErrorMessage } from "@/lib/api";
+import type { Product, Review } from "@/lib/types";
+import AddToCartButton from "@/components/AddToCartButton";
+import RatingStars from "@/components/RatingStars";
+import Loader from "@/components/Loader";
+import ErrorBox from "@/components/ErrorBox";
+import { useAuthStore } from "@/store/authStore";
 
-export default async function ProductPage({ params }: { params: { id: string } }) {
-  const product = await getProduct(params.id);
+export default function ProductDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = use(params);
+  const productId = Number(id);
+  const token = useAuthStore((s) => s.token);
+  const hasRole = useAuthStore((s) => s.hasRole);
 
-  if (!product) {
-    notFound();
-  }
-  
-  const imageUrl = product.images && product.images.length > 0 
-    ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api'}/products/images/download/${product.images[0]}` 
-    : null;
+  const [product, setProduct] = useState<Product | null>(null);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [selectedImage, setSelectedImage] = useState(0);
+  const [variantId, setVariantId] = useState<number | undefined>();
+  const [quantity, setQuantity] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [note, setNote] = useState(5);
+  const [commentaire, setCommentaire] = useState("");
+  const [reviewBusy, setReviewBusy] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    Promise.all([
+      api.get<Product>(`/products/${productId}`),
+      api.get<Review[]>(`/reviews/product/${productId}`).catch(() => ({ data: [] as Review[] })),
+    ])
+      .then(([p, r]) => {
+        setProduct(p.data);
+        setReviews(r.data);
+      })
+      .catch((e) => setError(extractErrorMessage(e)))
+      .finally(() => setLoading(false));
+  }, [productId]);
+
+  const submitReview = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setReviewBusy(true);
+    setReviewError(null);
+    try {
+      await api.post(`/products/${productId}/reviews`, { note, commentaire });
+      const { data } = await api.get<Review[]>(`/reviews/product/${productId}`);
+      setReviews(data);
+      setCommentaire("");
+      setNote(5);
+    } catch (err) {
+      setReviewError(extractErrorMessage(err));
+    } finally {
+      setReviewBusy(false);
+    }
+  };
+
+  if (loading) return <Loader />;
+  if (error) return <ErrorBox message={error} />;
+  if (!product)
+    return (
+      <div className="card p-8 text-center">
+        <h2 className="text-xl font-semibold">Produit introuvable</h2>
+        <Link href="/products" className="mt-3 inline-block text-indigo-600 hover:underline">
+          ← Retour au catalogue
+        </Link>
+      </div>
+    );
+
+  const images = product.images && product.images.length > 0 ? product.images : [
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(product.nom)}&background=e0e7ff&color=3730a3&size=800`,
+  ];
+
+  const discounted = product.prixPromo != null && product.prixPromo < product.prix;
+  const avgNote = reviews.length
+    ? reviews.reduce((s, r) => s + r.note, 0) / reviews.length
+    : product.noteMoyenne ?? 0;
 
   return (
-    <div className="max-w-4xl mx-auto py-8">
-      <Link href="/products" className="text-indigo-600 hover:underline mb-8 inline-block font-medium">
-        &larr; Retour aux produits
-      </Link>
-      
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col md:flex-row">
-        <div className="md:w-1/2 bg-gray-50 flex items-center justify-center p-0 aspect-square md:aspect-auto max-h-[500px]">
-          {imageUrl ? (
-             <img src={imageUrl} alt={product.nom} className="object-cover w-full h-full" />
-          ) : (
-             <span className="text-8xl">📦</span>
+    <div className="flex flex-col gap-10">
+      <div className="grid gap-8 md:grid-cols-2">
+        <div className="space-y-3">
+          <div className="relative aspect-square overflow-hidden rounded-2xl border border-slate-200 bg-white">
+            <Image
+              src={images[selectedImage]}
+              alt={product.nom}
+              fill
+              sizes="(min-width: 768px) 50vw, 100vw"
+              className="object-cover"
+              unoptimized
+              priority
+            />
+          </div>
+          {images.length > 1 && (
+            <div className="flex gap-2 overflow-x-auto">
+              {images.map((img, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => setSelectedImage(idx)}
+                  className={`relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg border-2 ${
+                    idx === selectedImage ? "border-indigo-600" : "border-slate-200"
+                  }`}
+                >
+                  <Image src={img} alt="" fill className="object-cover" unoptimized />
+                </button>
+              ))}
+            </div>
           )}
         </div>
-        <div className="p-8 md:w-1/2 flex flex-col justify-center">
-          <div className="text-sm text-indigo-600 font-bold mb-2 uppercase tracking-wide">
-            {product.category?.nom || product.category?.name || 'Catégorie non spécifiée'}
-          </div>
-          <h1 className="text-3xl font-extrabold text-gray-900 mb-4">{product.nom}</h1>
-          <p className="text-gray-600 mb-6 leading-relaxed whitespace-pre-wrap">
-            {product.description || "Aucune description fournie."}
-          </p>
-          <div className="text-4xl font-black text-indigo-600 mb-8">
-            {typeof product.prix === 'number' ? product.prix.toFixed(2) : product.prix} €
-          </div>
-          
-          <div className="border-t border-gray-100 pt-6">
-            <span className="text-sm font-medium text-gray-500 mb-2 block">
-              Stock disponible : {product.stock}
-            </span>
-            {product.stock > 0 ? (
-              <AddToCartButton product={{...product, name: product.nom, price: product.prix, quantity: 1}} />
+
+        <div className="flex flex-col gap-4">
+          {product.sellerNom && (
+            <Link
+              href={`/products?sellerId=${product.sellerId}`}
+              className="text-sm text-slate-500 hover:text-indigo-600"
+            >
+              Boutique: {product.sellerNom}
+            </Link>
+          )}
+          <h1 className="text-3xl font-bold text-slate-900">{product.nom}</h1>
+
+          {reviews.length > 0 && <RatingStars value={avgNote} count={reviews.length} />}
+
+          <div className="flex items-baseline gap-3">
+            {discounted ? (
+              <>
+                <span className="text-3xl font-extrabold text-rose-600">
+                  {product.prixPromo!.toFixed(2)} €
+                </span>
+                <span className="text-xl text-slate-400 line-through">
+                  {product.prix.toFixed(2)} €
+                </span>
+              </>
             ) : (
-              <div className="bg-red-50 text-red-600 px-4 py-3 rounded-md font-bold text-center mt-4">
-                Rupture de stock
-              </div>
+              <span className="text-3xl font-extrabold text-slate-900">
+                {product.prix.toFixed(2)} €
+              </span>
             )}
           </div>
+
+          <p className="text-sm leading-relaxed text-slate-600">
+            {product.description}
+          </p>
+
+          {product.variantes && product.variantes.length > 0 && (
+            <div>
+              <label className="mb-1 block text-sm font-semibold text-slate-700">
+                Variante
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {product.variantes.map((v) => (
+                  <button
+                    key={v.id}
+                    type="button"
+                    onClick={() => setVariantId(v.id === variantId ? undefined : v.id)}
+                    className={`btn-outline ${
+                      variantId === v.id ? "border-indigo-600 bg-indigo-50 text-indigo-700" : ""
+                    }`}
+                  >
+                    {v.attribut}: {v.valeur}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-center gap-3">
+            <label className="text-sm font-medium text-slate-700">Quantité</label>
+            <div className="flex items-center rounded-lg border border-slate-300">
+              <button
+                type="button"
+                className="px-3 py-2 text-lg disabled:opacity-40"
+                onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                disabled={quantity <= 1}
+              >
+                −
+              </button>
+              <span className="min-w-8 text-center">{quantity}</span>
+              <button
+                type="button"
+                className="px-3 py-2 text-lg"
+                onClick={() => setQuantity((q) => q + 1)}
+              >
+                +
+              </button>
+            </div>
+            <span className="text-sm text-slate-500">{product.stock} en stock</span>
+          </div>
+
+          <AddToCartButton
+            productId={product.id}
+            variantId={variantId}
+            quantity={quantity}
+            disabled={product.stock <= 0}
+          />
         </div>
       </div>
+
+      <section className="space-y-4">
+        <h2 className="section-title">Avis clients ({reviews.length})</h2>
+
+        {reviews.length === 0 ? (
+          <p className="card p-6 text-center text-slate-500">
+            Aucun avis pour l&apos;instant.
+          </p>
+        ) : (
+          <div className="grid gap-3">
+            {reviews.map((r) => (
+              <div key={r.id} className="card p-4">
+                <div className="mb-1 flex items-center justify-between">
+                  <span className="font-medium text-slate-900">{r.customerName}</span>
+                  <RatingStars value={r.note} size="sm" />
+                </div>
+                <p className="text-sm text-slate-600">{r.commentaire}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {token && hasRole("CUSTOMER") && (
+          <form onSubmit={submitReview} className="card space-y-3 p-5">
+            <h3 className="font-semibold text-slate-900">Laisser un avis</h3>
+            <RatingStars value={note} interactive onChange={setNote} />
+            <textarea
+              className="input"
+              rows={3}
+              value={commentaire}
+              placeholder="Votre avis sur le produit..."
+              onChange={(e) => setCommentaire(e.target.value)}
+              required
+            />
+            <ErrorBox message={reviewError ?? undefined} />
+            <button type="submit" className="btn-primary" disabled={reviewBusy}>
+              {reviewBusy ? "Envoi..." : "Publier l'avis"}
+            </button>
+          </form>
+        )}
+      </section>
     </div>
   );
 }

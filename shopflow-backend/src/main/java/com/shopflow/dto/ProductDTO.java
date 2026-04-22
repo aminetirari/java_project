@@ -20,4 +20,7 @@ public class ProductDTO {
     private List<Long> categoryIds;
     private List<String> images;
     private List<ProductVariantDTO> variantes;
+    private Double noteMoyenne;
+    private Integer nbAvis;
+    private String sellerNom;
 }

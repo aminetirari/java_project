@@ -63,8 +63,10 @@ public class CartService {
                     .orElseThrow(() -> new ResourceNotFoundException("Variante introuvable"));
         }
 
-        // Vérifier stock (Simplifié pour l'instant)
-        int stockAvailable = variant != null && variant.getStockSupplementaire() != null ? variant.getStockSupplementaire() : product.getStock();
+        int stockAvailable = product.getStock() == null ? 0 : product.getStock();
+        if (variant != null && variant.getStockSupplementaire() != null) {
+            stockAvailable += variant.getStockSupplementaire();
+        }
         if (stockAvailable < itemDto.getQuantite()) {
             throw new IllegalStateException("Stock insuffisant");
         }
