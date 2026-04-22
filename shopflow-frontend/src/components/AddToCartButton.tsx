@@ -1,47 +1,65 @@
-'use client';
-import { useState } from 'react';
-import { useCartStore } from '@/store/cartStore';
+"use client";
 
-export default function AddToCartButton({ product }: { product: any }) {
-  const [quantity, setQuantity] = useState(1);
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { api, extractErrorMessage } from "@/lib/api";
+import { useAuthStore } from "@/store/authStore";
+import { useCartStore } from "@/store/cartStore";
+
+interface Props {
+  productId: number;
+  variantId?: number;
+  disabled?: boolean;
+  quantity?: number;
+}
+
+export default function AddToCartButton({
+  productId,
+  variantId,
+  disabled,
+  quantity = 1,
+}: Props) {
+  const router = useRouter();
+  const token = useAuthStore((s) => s.token);
+  const setCart = useCartStore((s) => s.setCart);
   const [loading, setLoading] = useState(false);
-  const addItem = useCartStore((state) => state.addItem);
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
 
-  const handleAddToCart = () => {
+  const onClick = async () => {
+    if (!token) {
+      router.push("/login");
+      return;
+    }
     setLoading(true);
-    addItem({
-      id: product.id,
-      name: product.name,
-      price: product.price,
-      quantity,
-    });
-    
-    setTimeout(() => {
+    setError(null);
+    try {
+      const { data } = await api.post("/cart/items", {
+        productId,
+        variantId,
+        quantite: quantity,
+      });
+      setCart(data);
+      setDone(true);
+      setTimeout(() => setDone(false), 1500);
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
       setLoading(false);
-      // alert('Produit ajouté au panier !'); // Feedback optionnel, on peut utiliser un toast plus tard
-    }, 300);
+    }
   };
 
   return (
-    <div className="flex items-center gap-4 mt-6">
-      <div className="flex items-center border border-gray-300 rounded-md">
-        <button 
-          className="px-4 py-2 text-gray-600 hover:bg-gray-100 font-bold"
-          onClick={() => setQuantity(Math.max(1, quantity - 1))}
-        >-</button>
-        <span className="px-4 font-medium w-12 text-center">{quantity}</span>
-        <button 
-          className="px-4 py-2 text-gray-600 hover:bg-gray-100 font-bold"
-          onClick={() => setQuantity(quantity + 1)}
-        >+</button>
-      </div>
-      <button 
-        onClick={handleAddToCart}
-        disabled={loading}
-        className="flex-grow bg-indigo-600 text-white px-6 py-3 rounded-md font-bold hover:bg-indigo-700 transition disabled:bg-indigo-400"
+    <div className="flex flex-col gap-1">
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={disabled || loading}
+        className="btn-primary w-full"
       >
-        {loading ? 'Ajout en cours...' : 'Ajouter au panier'}
+        {loading ? "Ajout..." : done ? "Ajouté au panier ✓" : "Ajouter au panier"}
       </button>
+      {error && <span className="text-xs text-rose-600">{error}</span>}
     </div>
   );
 }

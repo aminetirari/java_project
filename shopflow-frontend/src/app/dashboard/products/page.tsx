@@ -1,69 +1,115 @@
-import Link from 'next/link';
-import api from '@/lib/api';
+"use client";
 
-// On va récupérer les produits via le backend, un peu différent d'un use client
-async function getSellerProducts() {
-  try {
-    // Cette route n'existe pas encore côté backend de façon authentifiée pour les VENDEURS, 
-    // Mais on peut faire : GET /products et filtrer, ou appeler un endpoint admin.
-    const res = await api.get('/products');
-    return res.data?.content || res.data || [];
-  } catch (error) {
-    return [];
-  }
-}
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { api, extractErrorMessage } from "@/lib/api";
+import type { Product } from "@/lib/types";
+import Loader from "@/components/Loader";
+import ErrorBox from "@/components/ErrorBox";
+import EmptyState from "@/components/EmptyState";
 
-export default async function SellerProductsPage() {
-  const products = await getSellerProducts();
+export default function SellerProductsPage() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data } = await api.get<Product[]>("/products/my");
+      setProducts(data);
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const remove = async (id: number) => {
+    if (!confirm("Supprimer ce produit ?")) return;
+    try {
+      await api.delete(`/products/${id}`);
+      setProducts((p) => p.filter((x) => x.id !== id));
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    }
+  };
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Mes Produits</h1>
-        <Link href="/dashboard/products/new" className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-indigo-700 transition">
-          Nouveau produit
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-3xl font-extrabold text-slate-900">Mes produits</h1>
+        <Link href="/dashboard/products/new" className="btn-primary">
+          + Nouveau produit
         </Link>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-gray-50 text-gray-600 text-sm uppercase tracking-wider">
-              <th className="px-6 py-4 font-semibold border-b border-gray-200">Produit</th>
-              <th className="px-6 py-4 font-semibold border-b border-gray-200">Prix</th>
-              <th className="px-6 py-4 font-semibold border-b border-gray-200">Stock</th>
-              <th className="px-6 py-4 font-semibold border-b border-gray-200">Statut</th>
-              <th className="px-6 py-4 font-semibold border-b border-gray-200">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100 text-sm">
-            {products.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
-                  Aucun produit trouvé.
-                </td>
+      <ErrorBox message={error ?? undefined} />
+
+      {loading ? (
+        <Loader />
+      ) : products.length === 0 ? (
+        <EmptyState
+          title="Aucun produit"
+          description="Ajoutez votre premier produit pour démarrer vos ventes."
+          ctaHref="/dashboard/products/new"
+          ctaLabel="Ajouter un produit"
+        />
+      ) : (
+        <div className="card overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500">
+                <th className="px-6 py-3">Produit</th>
+                <th className="px-6 py-3">Prix</th>
+                <th className="px-6 py-3">Stock</th>
+                <th className="px-6 py-3">Statut</th>
+                <th className="px-6 py-3 text-right">Actions</th>
               </tr>
-            ) : (
-              products.map((product: any) => (
-                <tr key={product.id} className="hover:bg-gray-50 transition">
-                  <td className="px-6 py-4 font-medium text-gray-900">{product.nom}</td>
-                  <td className="px-6 py-4 font-medium">{product.prix.toFixed(2)} €</td>
-                  <td className="px-6 py-4">{product.stock}</td>
-                  <td className="px-6 py-4">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                      En ligne
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {products.map((p) => (
+                <tr key={p.id} className="hover:bg-slate-50">
+                  <td className="px-6 py-3 font-medium text-slate-900">{p.nom}</td>
+                  <td className="px-6 py-3">{p.prix.toFixed(2)} €</td>
+                  <td className="px-6 py-3">{p.stock}</td>
+                  <td className="px-6 py-3">
+                    <span
+                      className={`badge ${
+                        p.actif !== false
+                          ? "bg-emerald-50 text-emerald-700"
+                          : "bg-slate-100 text-slate-600"
+                      }`}
+                    >
+                      {p.actif !== false ? "En ligne" : "Inactif"}
                     </span>
                   </td>
-                  <td className="px-6 py-4">
-                    <a href={`/dashboard/products/${product.id}/edit`} className="text-indigo-600 hover:text-indigo-900 font-medium mr-4">Modifier</a>
-                    <button className="text-red-600 hover:text-red-900 font-medium">Supprimer</button>
+                  <td className="px-6 py-3 text-right">
+                    <Link
+                      href={`/products/${p.id}`}
+                      className="mr-3 text-indigo-600 hover:underline"
+                    >
+                      Voir
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => remove(p.id)}
+                      className="text-rose-600 hover:underline"
+                    >
+                      Supprimer
+                    </button>
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

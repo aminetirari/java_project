@@ -1,110 +1,210 @@
-'use client';
-import { useCartStore } from '@/store/cartStore';
-import Link from 'next/link';
-import { useEffect, useState } from 'react';
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { api, extractErrorMessage } from "@/lib/api";
+import { useAuthStore } from "@/store/authStore";
+import { useCartStore } from "@/store/cartStore";
+import Loader from "@/components/Loader";
+import ErrorBox from "@/components/ErrorBox";
+import EmptyState from "@/components/EmptyState";
 
 export default function CartPage() {
-  const [mounted, setMounted] = useState(false);
-  const { items, removeItem, updateQuantity, clearCart, getTotalPrice } = useCartStore();
+  const router = useRouter();
+  const token = useAuthStore((s) => s.token);
+  const { cart, setCart } = useCartStore();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [coupon, setCoupon] = useState("");
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
+    if (!token) {
+      router.replace("/login?redirect=/cart");
+      return;
+    }
+    api
+      .get("/cart")
+      .then((r) => setCart(r.data))
+      .catch((e) => setError(extractErrorMessage(e)))
+      .finally(() => setLoading(false));
+  }, [token, router, setCart]);
 
-  if (!mounted) return <div className="p-8 text-center">Chargement du panier...</div>;
+  const updateQty = async (itemId: number, quantite: number) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const { data } = await api.put(`/cart/items/${itemId}?quantite=${quantite}`);
+      setCart(data);
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
 
-  if (items.length === 0) {
+  const removeItem = async (itemId: number) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const { data } = await api.delete(`/cart/items/${itemId}`);
+      setCart(data);
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const applyCoupon = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!coupon.trim()) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const { data } = await api.post("/cart/coupon", { code: coupon.trim() });
+      setCart(data);
+      setCoupon("");
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const removeCoupon = async () => {
+    setBusy(true);
+    try {
+      const { data } = await api.delete("/cart/coupon");
+      setCart(data);
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (loading) return <Loader />;
+
+  if (!cart || cart.lignes.length === 0) {
     return (
-      <div className="max-w-4xl mx-auto py-16 text-center bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-        <span className="text-6xl mb-4 block">🛒</span>
-        <h1 className="text-3xl font-bold text-gray-800 mb-4">Votre panier est vide</h1>
-        <p className="text-gray-500 mb-8">Découvrez nos produits et trouvez votre bonheur !</p>
-        <Link href="/products" className="bg-indigo-600 text-white px-8 py-3 rounded-md font-bold hover:bg-indigo-700 transition">
-          Voir la boutique
-        </Link>
+      <div className="flex flex-col gap-4">
+        <h1 className="section-title">Mon panier</h1>
+        <ErrorBox message={error ?? undefined} />
+        <EmptyState
+          title="Votre panier est vide"
+          description="Ajoutez vos premiers produits pour commencer."
+          ctaHref="/products"
+          ctaLabel="Voir le catalogue"
+        />
       </div>
     );
   }
 
   return (
-    <div className="max-w-6xl mx-auto py-8">
-      <h1 className="text-3xl font-extrabold text-gray-900 mb-8">Votre Panier</h1>
-      
-      <div className="flex flex-col lg:flex-row gap-8">
-        <div className="flex-grow">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <ul className="divide-y divide-gray-100">
-              {items.map((item) => (
-                <li key={item.id} className="p-6 flex flex-col sm:flex-row items-center justify-between gap-4 hover:bg-gray-50 transition">
-                  <div className="flex items-center gap-4 w-full sm:w-auto">
-                    <div className="w-16 h-16 bg-gray-100 rounded-md flex items-center justify-center text-2xl">📦</div>
-                    <div>
-                      <h3 className="font-bold text-gray-800">{item.name}</h3>
-                      <p className="text-indigo-600 font-bold">{item.price.toFixed(2)} €</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-6 w-full sm:w-auto justify-between sm:justify-end">
-                    <div className="flex items-center border border-gray-300 rounded-md">
-                      <button 
-                        className="px-3 py-1 text-gray-600 hover:bg-gray-200 font-bold"
-                        onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}
-                      >-</button>
-                      <span className="px-4 font-medium">{item.quantity}</span>
-                      <button 
-                        className="px-3 py-1 text-gray-600 hover:bg-gray-200 font-bold"
-                        onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                      >+</button>
-                    </div>
-                    
-                    <button 
-                      onClick={() => removeItem(item.id)}
-                      className="text-red-500 hover:text-red-700 font-medium text-sm"
-                    >
-                      Supprimer
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-
-        <div className="w-full lg:w-96 shrink-0">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sticky top-24">
-            <h2 className="text-xl font-bold text-gray-800 mb-6">Résumé de la commande</h2>
-            
-            <div className="space-y-3 mb-6 text-gray-600">
-              <div className="flex justify-between">
-                <span>Sous-total</span>
-                <span>{getTotalPrice().toFixed(2)} €</span>
+    <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+      <section className="space-y-4">
+        <h1 className="section-title">Mon panier</h1>
+        <ErrorBox message={error ?? undefined} />
+        <div className="card divide-y divide-slate-200">
+          {cart.lignes.map((line) => (
+            <div key={line.id} className="flex items-center gap-4 p-4">
+              <Link
+                href={`/products/${line.productId}`}
+                className="flex-1 font-medium text-slate-900 hover:text-indigo-600"
+              >
+                {line.productNom}
+              </Link>
+              <div className="flex items-center rounded-lg border border-slate-300">
+                <button
+                  type="button"
+                  onClick={() => updateQty(line.id, Math.max(1, line.quantite - 1))}
+                  disabled={busy || line.quantite <= 1}
+                  className="px-3 py-1 disabled:opacity-40"
+                >
+                  −
+                </button>
+                <span className="min-w-8 text-center">{line.quantite}</span>
+                <button
+                  type="button"
+                  onClick={() => updateQty(line.id, line.quantite + 1)}
+                  disabled={busy}
+                  className="px-3 py-1"
+                >
+                  +
+                </button>
               </div>
-              <div className="flex justify-between text-green-600">
-                <span>Remises</span>
-                <span>0.00 €</span>
+              <div className="w-24 text-right font-semibold">
+                {line.sousTotal.toFixed(2)} €
               </div>
-              <div className="border-t pt-3 mt-3 flex justify-between items-center font-extrabold text-xl text-gray-900">
-                <span>Total</span>
-                <span>{getTotalPrice().toFixed(2)} €</span>
-              </div>
+              <button
+                type="button"
+                onClick={() => removeItem(line.id)}
+                disabled={busy}
+                className="text-slate-400 hover:text-rose-600"
+                aria-label="Supprimer"
+              >
+                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m2 0v14a2 2 0 01-2 2H8a2 2 0 01-2-2V6" />
+                </svg>
+              </button>
             </div>
-
-            <button 
-              className="w-full bg-indigo-600 text-white px-6 py-4 rounded-md font-bold hover:bg-indigo-700 transition"
-              onClick={() => window.location.href = "/checkout"}
-            >
-              Passer la commande
-            </button>
-            
-            <button 
-              className="w-full mt-4 text-gray-500 hover:text-gray-800 font-medium text-sm underline"
-              onClick={clearCart}
-            >
-              Vider le panier
-            </button>
-          </div>
+          ))}
         </div>
-      </div>
+      </section>
+
+      <aside className="card sticky top-20 h-fit space-y-4 p-5">
+        <h2 className="text-lg font-semibold text-slate-900">Récapitulatif</h2>
+        <dl className="space-y-2 text-sm text-slate-700">
+          <div className="flex justify-between">
+            <dt>Sous-total</dt>
+            <dd>{cart.sousTotal.toFixed(2)} €</dd>
+          </div>
+          {cart.remise > 0 && (
+            <div className="flex justify-between text-emerald-600">
+              <dt>Remise ({cart.codePromo})</dt>
+              <dd>-{cart.remise.toFixed(2)} €</dd>
+            </div>
+          )}
+          <div className="flex justify-between border-t border-slate-200 pt-2 text-base font-bold text-slate-900">
+            <dt>Total</dt>
+            <dd>{cart.totalCart.toFixed(2)} €</dd>
+          </div>
+        </dl>
+
+        {cart.codePromo ? (
+          <button
+            type="button"
+            onClick={removeCoupon}
+            className="btn-outline w-full"
+            disabled={busy}
+          >
+            Retirer le coupon
+          </button>
+        ) : (
+          <form onSubmit={applyCoupon} className="space-y-2">
+            <label className="text-xs font-semibold uppercase text-slate-500">
+              Code promo
+            </label>
+            <div className="flex gap-2">
+              <input
+                className="input"
+                placeholder="BIENVENUE10"
+                value={coupon}
+                onChange={(e) => setCoupon(e.target.value)}
+              />
+              <button type="submit" disabled={busy} className="btn-primary">
+                Appliquer
+              </button>
+            </div>
+          </form>
+        )}
+
+        <Link href="/checkout" className="btn-primary w-full">
+          Passer commande
+        </Link>
+      </aside>
     </div>
   );
 }

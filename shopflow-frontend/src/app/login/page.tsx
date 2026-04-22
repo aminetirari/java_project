@@ -1,91 +1,116 @@
-'use client';
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import api from '@/lib/api';
-import { useAuthStore } from '@/store/authStore';
-import Link from 'next/link';
+"use client";
 
-export default function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+import { useState, Suspense } from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { api, extractErrorMessage } from "@/lib/api";
+import type { AuthResponse } from "@/lib/types";
+import { useAuthStore } from "@/store/authStore";
+import ErrorBox from "@/components/ErrorBox";
+
+function LoginForm() {
   const router = useRouter();
-  const setAuth = useAuthStore((state) => state.setAuth);
+  const search = useSearchParams();
+  const redirect = search.get("redirect") || "/";
+  const setAuth = useAuthStore((s) => s.setAuth);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setError('');
-
+    setBusy(true);
+    setError(null);
     try {
-      // Configuration basique, adapter selon les noms de champs attendus par Spring Security
-      const response = await api.post('/auth/login', { email, password });
-      // On suppose que l'API retourne { token: "...", user: { ... } }
-      const { token, ...userData } = response.data;
-      
-      setAuth(token, userData);
-      router.push('/');
-    } catch (err: any) {
-      console.error('Erreur de connexion:', err);
-      setError(err.response?.data?.message || 'Identifiants incorrects. Veuillez réessayer.');
+      const { data } = await api.post<AuthResponse>("/auth/login", {
+        email,
+        password,
+      });
+      setAuth({
+        token: data.token,
+        refreshToken: data.refreshToken,
+        user: {
+          id: data.id,
+          email: data.email,
+          prenom: data.prenom ?? "",
+          nom: data.nom ?? "",
+          role: (data.roles[0]?.replace(/^ROLE_/, "") as never) ?? "CUSTOMER",
+        },
+        roles: data.roles,
+      });
+      router.push(redirect);
+    } catch (err) {
+      setError(extractErrorMessage(err));
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
   };
 
   return (
-    <div className="max-w-md mx-auto py-16">
-      <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6 text-center">Connexion à votre compte</h1>
-        
-        {error && (
-          <div className="mb-4 p-3 bg-red-50 text-red-700 text-sm rounded-md border border-red-100">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleLogin} className="space-y-4">
+    <div className="mx-auto max-w-md">
+      <div className="card space-y-5 p-8">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Bon retour !</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Connectez-vous pour continuer vos achats.
+          </p>
+        </div>
+        <ErrorBox message={error ?? undefined} />
+        <form onSubmit={onSubmit} className="space-y-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email ou Nom d'utilisateur</label>
-            <input 
-              type="text" 
+            <label className="mb-1 block text-sm font-medium text-slate-700">
+              Email
+            </label>
+            <input
+              className="input"
+              type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              required 
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition"
-              placeholder="votre@email.com"
+              required
+              autoComplete="email"
             />
           </div>
-          
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Mot de passe</label>
-            <input 
-              type="password" 
+            <label className="mb-1 block text-sm font-medium text-slate-700">
+              Mot de passe
+            </label>
+            <input
+              className="input"
+              type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              required 
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition"
-              placeholder="••••••••"
+              required
+              autoComplete="current-password"
             />
           </div>
-
-          <button 
-            type="submit" 
-            disabled={loading}
-            className="w-full bg-indigo-600 text-white font-bold py-3 rounded-md hover:bg-indigo-700 transition disabled:bg-indigo-400 mt-4"
-          >
-            {loading ? 'Connexion en cours...' : 'Se connecter'}
+          <button type="submit" disabled={busy} className="btn-primary w-full">
+            {busy ? "Connexion..." : "Se connecter"}
           </button>
         </form>
-
-        <p className="mt-6 text-center text-sm text-gray-600">
-          Pas encore de compte ?{' '}
-          <Link href="/register" className="text-indigo-600 font-bold hover:underline">
-            S'inscrire
+        <p className="text-center text-sm text-slate-600">
+          Pas encore de compte ?{" "}
+          <Link href="/register" className="font-medium text-indigo-600 hover:underline">
+            Créer un compte
           </Link>
         </p>
+        <div className="rounded-lg bg-slate-50 p-3 text-xs text-slate-500">
+          <p className="font-semibold">Comptes de démo</p>
+          <ul className="mt-1 space-y-0.5">
+            <li>admin@shopflow.com / password123</li>
+            <li>seller@techstore.com / password123</li>
+            <li>jean.dupont@shopflow.com / password123</li>
+          </ul>
+        </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
   );
 }

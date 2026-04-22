@@ -1,79 +1,94 @@
-'use client';
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/store/authStore';
-import api from '@/lib/api';
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { api, extractErrorMessage } from "@/lib/api";
+import { useAuthStore } from "@/store/authStore";
+import type { Order } from "@/lib/types";
+import Loader from "@/components/Loader";
+import ErrorBox from "@/components/ErrorBox";
+import EmptyState from "@/components/EmptyState";
+import OrderStatusBadge from "@/components/OrderStatusBadge";
 
 export default function ProfilePage() {
-  const { user, token } = useAuthStore();
   const router = useRouter();
-  const [mounted, setMounted] = useState(false);
-  const [orders, setOrders] = useState([]);
+  const { token, user } = useAuthStore();
+  const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setMounted(true);
     if (!token) {
-      router.push('/login');
+      router.replace("/login?redirect=/profile");
       return;
     }
-
-    const fetchOrders = async () => {
-      try {
-        // En vrai, il faudrait un endpoint GET /api/orders/user/{id} dans Spring Boot
-        const response = await api.get(`/orders`);
-        setOrders(response.data?.content || response.data || []);
-      } catch (err) {
-        console.error("Erreur récupération commandes:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchOrders();
+    api
+      .get<Order[]>("/orders/my")
+      .then((r) => setOrders(r.data))
+      .catch((e) => setError(extractErrorMessage(e)))
+      .finally(() => setLoading(false));
   }, [token, router]);
 
-  if (!mounted || !token) return null;
-
   return (
-    <div className="max-w-4xl mx-auto py-12">
-      <h1 className="text-3xl font-extrabold text-gray-900 mb-8">Bonjour, {user?.nom || 'Utilisateur'}</h1>
-
-      <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 mb-8">
-        <h2 className="text-xl font-bold text-gray-800 mb-4">Mes Informations</h2>
-        <p className="text-gray-600 mb-2"><strong>Email : </strong> {user?.email}</p>
-        <p className="text-gray-600"><strong>Nom d'utilisateur : </strong> {user?.username}</p>
+    <div className="space-y-6">
+      <div className="card flex flex-wrap items-center justify-between gap-4 p-6">
+        <div>
+          <h1 className="section-title">
+            Bonjour, {user?.prenom ?? "client"}
+          </h1>
+          <p className="text-sm text-slate-500">{user?.email}</p>
+        </div>
+        <span className="badge bg-indigo-50 text-indigo-700 ring-1 ring-indigo-100">
+          {user?.role ?? ""}
+        </span>
       </div>
 
-      <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
-        <h2 className="text-xl font-bold text-gray-800 mb-6">Mes Commandes</h2>
-        
+      <section>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-slate-900">Mes commandes</h2>
+          <Link href="/products" className="text-sm text-indigo-600 hover:underline">
+            Continuer mes achats →
+          </Link>
+        </div>
+        <ErrorBox message={error ?? undefined} />
         {loading ? (
-          <p className="text-gray-500">Chargement de vos commandes...</p>
+          <Loader />
         ) : orders.length === 0 ? (
-          <div className="text-center py-8">
-            <span className="text-4xl mb-4 block">📦</span>
-            <p className="text-gray-500">Vous n'avez pas encore passé de commande.</p>
-          </div>
+          <EmptyState
+            title="Aucune commande"
+            description="Passez votre première commande pour voir son historique ici."
+            ctaHref="/products"
+            ctaLabel="Explorer le catalogue"
+          />
         ) : (
-          <div className="space-y-4">
-            {orders.map((order: any, index: number) => (
-              <div key={order.id || index} className="border border-gray-200 rounded-lg p-4 flex justify-between items-center">
+          <div className="card divide-y divide-slate-200">
+            {orders.map((o) => (
+              <Link
+                key={o.id}
+                href={`/profile/orders/${o.id}`}
+                className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 hover:bg-slate-50"
+              >
                 <div>
-                  <h3 className="font-bold text-indigo-600">Commande #{order.id || index + 1}</h3>
-                  <p className="text-sm text-gray-500 line-clamp-1">{order.address || 'Adresse non spécifiée'}</p>
+                  <div className="font-semibold text-slate-900">
+                    {o.numeroCommande}
+                  </div>
+                  <div className="text-sm text-slate-500">
+                    {new Date(o.dateCommande).toLocaleDateString()} •{" "}
+                    {o.lignes.length} article{o.lignes.length > 1 ? "s" : ""}
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p className="font-bold text-gray-900">{order.totalAmount ? order.totalAmount.toFixed(2) : '0.00'} €</p>
-                  <span className="text-xs bg-indigo-100 text-indigo-800 px-2 py-1 rounded-md font-medium mt-1 inline-block">
-                    {order.status || 'En cours'}
+                <div className="flex items-center gap-4">
+                  <OrderStatusBadge status={o.status} />
+                  <span className="font-semibold text-slate-900">
+                    {o.total.toFixed(2)} €
                   </span>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         )}
-      </div>
+      </section>
     </div>
   );
 }

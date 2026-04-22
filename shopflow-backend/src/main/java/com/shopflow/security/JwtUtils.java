@@ -19,15 +19,29 @@ public class JwtUtils {
     @Value("${jwt.expiration}")
     private int jwtExpirationMs;
 
+    @Value("${jwt.refreshExpiration:604800000}")
+    private long refreshExpirationMs;
+
     public String generateJwtToken(Authentication authentication) {
         UserDetailsImpl userPrincipal = (UserDetailsImpl) authentication.getPrincipal();
+        return generateTokenForUser(userPrincipal.getUsername(), jwtExpirationMs);
+    }
 
+    public String generateTokenForUser(String email, long expirationMs) {
         return Jwts.builder()
-                .subject((userPrincipal.getUsername()))
+                .subject(email)
                 .issuedAt(new Date())
-                .expiration(new Date((new Date()).getTime() + jwtExpirationMs))
+                .expiration(new Date((new Date()).getTime() + expirationMs))
                 .signWith(key(), Jwts.SIG.HS256)
                 .compact();
+    }
+
+    public String generateAccessToken(String email) {
+        return generateTokenForUser(email, jwtExpirationMs);
+    }
+
+    public String generateRefreshToken(String email) {
+        return generateTokenForUser(email, refreshExpirationMs);
     }
 
     private SecretKey key() {

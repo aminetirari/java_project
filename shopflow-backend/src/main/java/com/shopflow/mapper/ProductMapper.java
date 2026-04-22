@@ -13,7 +13,10 @@ import java.util.stream.Collectors;
 public interface ProductMapper {
 
     @Mapping(source = "seller.id", target = "sellerId")
+    @Mapping(source = "seller.nomBoutique", target = "sellerNom")
     @Mapping(target = "categoryIds", expression = "java(mapCategoriesToIds(product.getCategories()))")
+    @Mapping(target = "noteMoyenne", ignore = true)
+    @Mapping(target = "nbAvis", ignore = true)
     ProductDTO toDto(Product product);
 
     List<ProductDTO> toDtoList(List<Product> products);

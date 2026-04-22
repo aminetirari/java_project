@@ -1,71 +1,144 @@
-import Link from 'next/link';
-import api from '@/lib/api';
+import Link from "next/link";
+import { API_BASE_URL } from "@/lib/api";
+import type { Category, Page, Product } from "@/lib/types";
+import ProductCard from "@/components/ProductCard";
 
-async function getProducts() {
+export const dynamic = "force-dynamic";
+
+async function fetchJson<T>(path: string): Promise<T | null> {
   try {
-    const response = await api.get('/products');
-    return response.data; // Assuming Spring Boot returns array in body, or response.data.content if pageable
-  } catch (error) {
-    console.error("Error fetching products", error);
-    return [];
+    const res = await fetch(`${API_BASE_URL}${path}`, { cache: "no-store" });
+    if (!res.ok) return null;
+    return (await res.json()) as T;
+  } catch {
+    return null;
   }
 }
 
 export default async function Home() {
-  const productsResult = await getProducts();
-  
-  // Spring Boot paginated result typical structure
-  const products = productsResult?.content || productsResult || [];
+  const [productsPage, categories, topSelling] = await Promise.all([
+    fetchJson<Page<Product>>("/products?size=8&sort=newest"),
+    fetchJson<Category[]>("/categories"),
+    fetchJson<Product[]>("/products/top-selling"),
+  ]);
+
+  const products = productsPage?.content ?? [];
+  const cats = categories ?? [];
+  const top = topSelling ?? [];
 
   return (
-    <div>
-      <section className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl py-20 px-4 text-center mb-12">
-        <h1 className="text-4xl md:text-6xl font-extrabold mb-6">Bienvenue sur ShopFlow</h1>
-        <p className="text-xl md:text-2xl mb-8 max-w-2xl mx-auto">Découvrez les meilleurs produits aux meilleurs prix. Votre nouvelle plateforme e-commerce.</p>
-        <Link href="/products" className="bg-white text-indigo-600 px-8 py-4 rounded-full font-bold text-lg hover:bg-gray-100 transition shadow-lg inline-block">
-          Voir la Collection
-        </Link>
+    <div className="flex flex-col gap-12">
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-600 via-indigo-500 to-violet-600 px-8 py-16 text-white shadow-xl">
+        <div className="max-w-2xl space-y-5">
+          <span className="badge bg-white/15 text-white ring-1 ring-white/30">
+            Plateforme multi-vendeurs
+          </span>
+          <h1 className="text-4xl font-extrabold leading-tight md:text-5xl">
+            Achetez malin. Vendez facilement. Tout, sur ShopFlow.
+          </h1>
+          <p className="text-lg text-indigo-100">
+            Parcourez des milliers de produits, suivez vos commandes en temps
+            réel et profitez de coupons exclusifs.
+          </p>
+          <div className="flex flex-wrap gap-3 pt-2">
+            <Link
+              href="/products"
+              className="btn bg-white text-indigo-700 hover:bg-slate-100"
+            >
+              Explorer le catalogue
+            </Link>
+            <Link
+              href="/register"
+              className="btn bg-white/10 text-white ring-1 ring-white/40 hover:bg-white/20"
+            >
+              Créer un compte vendeur
+            </Link>
+          </div>
+        </div>
+        <div className="pointer-events-none absolute -right-12 -top-12 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-16 -right-24 h-80 w-80 rounded-full bg-violet-400/30 blur-3xl" />
       </section>
 
-      <section className="mb-12">
-        <div className="flex justify-between items-center mb-8">
-          <h2 className="text-3xl font-bold text-gray-800">Produits Récents</h2>
-          <Link href="/products" className="text-indigo-600 font-medium hover:underline">
-            Voir tout &rarr;
+      {cats.length > 0 && (
+        <section>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="section-title">Explorer par catégorie</h2>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+            {cats.slice(0, 8).map((c) => (
+              <Link
+                key={c.id}
+                href={`/products?categoryId=${c.id}`}
+                className="card flex flex-col gap-1 p-4 transition hover:border-indigo-300 hover:shadow-md"
+              >
+                <span className="text-sm font-semibold text-slate-900">
+                  {c.nom}
+                </span>
+                {c.description && (
+                  <span className="line-clamp-2 text-xs text-slate-500">
+                    {c.description}
+                  </span>
+                )}
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <section>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="section-title">Nouveautés</h2>
+          <Link href="/products" className="text-sm text-indigo-600 hover:underline">
+            Tout voir →
           </Link>
         </div>
-        
         {products.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-sm p-12 text-center text-gray-500">
-            <p>Aucun produit disponible pour le moment.</p>
+          <div className="card p-8 text-center text-slate-500">
+            Aucun produit disponible pour le moment.
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            {products.map((product: any) => {
-              const imageUrl = product.images && product.images.length > 0 
-                ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api'}/products/images/download/${product.images[0]}` 
-                : null;
-                
-              return (
-                <Link href={`/products/${product.id}`} key={product.id} className="group bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-xl transition flex flex-col items-center p-4">
-                  <div className="aspect-square bg-gray-100 w-full rounded-lg mb-4 flex items-center justify-center overflow-hidden">
-                    {imageUrl ? (
-                      <img src={imageUrl} alt={product.nom} className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300" />
-                    ) : (
-                      <span className="text-4xl text-gray-300">📦</span>
-                    )}
-                  </div>
-                  <div className="p-4 flex-grow w-full text-center">
-                    <h3 className="font-bold text-gray-800 mb-2 group-hover:text-indigo-600 transition truncate">{product.nom}</h3>
-                    <p className="text-gray-500 text-sm mb-4 line-clamp-2">{product.description}</p>
-                    <p className="text-xl font-extrabold text-indigo-600">{product.prix.toFixed(2)} €</p>
-                  </div>
-                </Link>
-              );
-            })}
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+            {products.map((p) => (
+              <ProductCard key={p.id} product={p} />
+            ))}
           </div>
         )}
       </section>
+
+      {top.length > 0 && (
+        <section>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="section-title">Les meilleures ventes</h2>
+          </div>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+            {top.slice(0, 4).map((p) => (
+              <ProductCard key={p.id} product={p} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      <section className="grid gap-4 md:grid-cols-3">
+        {[
+          {
+            t: "Livraison rapide",
+            d: "Frais offerts dès 50 €. Expédition sous 48h.",
+          },
+          {
+            t: "Coupons exclusifs",
+            d: "Profitez de codes promo comme BIENVENUE10 à votre première commande.",
+          },
+          {
+            t: "Paiement sécurisé",
+            d: "Paiements chiffrés via Stripe et gestion JWT.",
+          },
+        ].map((f) => (
+          <div key={f.t} className="card p-5">
+            <h3 className="font-semibold text-slate-900">{f.t}</h3>
+            <p className="mt-1 text-sm text-slate-500">{f.d}</p>
+          </div>
+        ))}
+      </section>
     </div>
-  )
+  );
 }
