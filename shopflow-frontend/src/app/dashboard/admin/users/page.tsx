@@ -5,6 +5,7 @@ import { api, extractErrorMessage } from "@/lib/api";
 import Loader from "@/components/Loader";
 import ErrorBox from "@/components/ErrorBox";
 import EmptyState from "@/components/EmptyState";
+import { useAuthStore } from "@/store/authStore";
 import type { User } from "@/lib/types";
 
 const roleStyle: Record<string, string> = {
@@ -14,6 +15,7 @@ const roleStyle: Record<string, string> = {
 };
 
 export default function AdminUsersPage() {
+  const currentUser = useAuthStore((s) => s.user);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -78,6 +80,7 @@ export default function AdminUsersPage() {
             <tbody className="divide-y divide-slate-100">
               {users.map((u) => {
                 const active = u.actif ?? true;
+                const isSelf = currentUser?.id === u.id;
                 return (
                   <tr key={u.id} className="hover:bg-slate-50">
                     <td className="px-6 py-3 font-medium text-slate-900">
@@ -101,20 +104,26 @@ export default function AdminUsersPage() {
                       </span>
                     </td>
                     <td className="px-6 py-3 text-right">
-                      <button
-                        type="button"
-                        className={`btn ${
-                          active ? "btn-outline" : "btn-primary"
-                        } text-xs`}
-                        onClick={() => toggleActive(u)}
-                        disabled={busyId === u.id}
-                      >
-                        {busyId === u.id
-                          ? "..."
-                          : active
-                          ? "Désactiver"
-                          : "Réactiver"}
-                      </button>
+                      {isSelf ? (
+                        <span className="text-xs italic text-slate-400">
+                          Vous
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          className={`btn ${
+                            active ? "btn-outline" : "btn-primary"
+                          } text-xs`}
+                          onClick={() => toggleActive(u)}
+                          disabled={busyId === u.id}
+                        >
+                          {busyId === u.id
+                            ? "..."
+                            : active
+                            ? "Désactiver"
+                            : "Réactiver"}
+                        </button>
+                      )}
                     </td>
                   </tr>
                 );
