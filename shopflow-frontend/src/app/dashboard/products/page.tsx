@@ -76,7 +76,7 @@ export default function SellerProductsPage() {
               {products.map((p) => (
                 <tr key={p.id} className="hover:bg-slate-50">
                   <td className="px-6 py-3 font-medium text-slate-900">{p.nom}</td>
-                  <td className="px-6 py-3">{p.prix.toFixed(2)} €</td>
+                  <td className="px-6 py-3">{(p.prix ?? 0).toFixed(2)} €</td>
                   <td className="px-6 py-3">{p.stock}</td>
                   <td className="px-6 py-3">
                     <span

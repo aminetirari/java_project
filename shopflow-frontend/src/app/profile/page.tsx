@@ -81,7 +81,7 @@ export default function ProfilePage() {
                 <div className="flex items-center gap-4">
                   <OrderStatusBadge status={o.status} />
                   <span className="font-semibold text-slate-900">
-                    {o.total.toFixed(2)} €
+                    {(o.total ?? 0).toFixed(2)} €
                   </span>
                 </div>
               </Link>

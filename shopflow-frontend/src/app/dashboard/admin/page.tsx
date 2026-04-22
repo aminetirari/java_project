@@ -94,7 +94,7 @@ export default function AdminDashboardPage() {
                   <Link href={`/products/${p.id}`} className="hover:text-indigo-600">
                     {p.nom}
                   </Link>
-                  <span className="font-semibold">{p.prix.toFixed(2)} €</span>
+                  <span className="font-semibold">{(p.prix ?? 0).toFixed(2)} €</span>
                 </li>
               ))}
             </ul>
@@ -117,7 +117,7 @@ export default function AdminDashboardPage() {
                   </div>
                   <div className="flex items-center gap-3">
                     <OrderStatusBadge status={o.status} />
-                    <span className="font-semibold">{o.total.toFixed(2)} €</span>
+                    <span className="font-semibold">{(o.total ?? 0).toFixed(2)} €</span>
                   </div>
                 </li>
               ))}
