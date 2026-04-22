@@ -4,6 +4,5 @@
 *.iml
 
 shopflow-backend/target/
-shopflow-frontend/
 shopflow-frontend/.next/
 shopflow-frontend/node_modules/
