@@ -9,6 +9,7 @@ import com.shopflow.repository.AddressRepository;
 import com.shopflow.repository.CartRepository;
 import com.shopflow.repository.CouponRepository;
 import com.shopflow.repository.OrderRepository;
+import com.shopflow.repository.SellerProfileRepository;
 import com.shopflow.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -36,6 +37,7 @@ public class OrderService {
     private final UserRepository userRepository;
     private final CouponRepository couponRepository;
     private final AddressRepository addressRepository;
+    private final SellerProfileRepository sellerProfileRepository;
     private final OrderMapper orderMapper;
     private final CartMapper cartMapper;
 
@@ -153,7 +155,9 @@ public class OrderService {
 
         boolean isOwner = order.getCustomer().getId().equals(user.getId());
         boolean isAdmin = user.getRole() == Role.ADMIN;
-        if (!isOwner && !isAdmin) {
+        boolean isSellerOfOrder = user.getRole() == Role.SELLER &&
+                order.getLignes().stream().anyMatch(l -> l.getProduct().getSeller().getUser().getId().equals(user.getId()));
+        if (!isOwner && !isAdmin && !isSellerOfOrder) {
             throw new IllegalArgumentException("Action non autorisée");
         }
         if (!CANCELLABLE.contains(order.getStatut())) {
@@ -206,9 +210,9 @@ public class OrderService {
                     .map(orderMapper::toDto).collect(Collectors.toList());
         }
         if (user.getRole() == Role.SELLER) {
-            return user.getId() == null ? List.of() : orderRepository.findAll().stream()
-                    .filter(o -> o.getLignes().stream().anyMatch(l -> l.getProduct().getSeller().getUser().getId().equals(user.getId())))
-                    .sorted((a, b) -> b.getDateCommande().compareTo(a.getDateCommande()))
+            SellerProfile sellerProfile = sellerProfileRepository.findByUserId(user.getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Profil vendeur introuvable"));
+            return orderRepository.findBySellerProfileId(sellerProfile.getId()).stream()
                     .map(orderMapper::toDto).collect(Collectors.toList());
         }
         throw new IllegalArgumentException("Accès réservé aux vendeurs ou administrateurs");
