@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api, extractErrorMessage } from "@/lib/api";
@@ -13,9 +13,9 @@ import OrderStatusBadge from "@/components/OrderStatusBadge";
 export default function OrderDetailPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }) {
-  const { id } = use(params);
+  const { id } = params;
   const router = useRouter();
   const token = useAuthStore((s) => s.token);
   const [order, setOrder] = useState<Order | null>(null);
