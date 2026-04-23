@@ -197,6 +197,23 @@ public class OrderService {
                 .map(orderMapper::toDto).collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
+    public List<OrderDTO> getSalesForUser(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
+        if (user.getRole() == Role.ADMIN) {
+            return orderRepository.findAllByOrderByDateCommandeDesc(Pageable.unpaged()).stream()
+                    .map(orderMapper::toDto).collect(Collectors.toList());
+        }
+        if (user.getRole() == Role.SELLER) {
+            return user.getId() == null ? List.of() : orderRepository.findAll().stream()
+                    .filter(o -> o.getLignes().stream().anyMatch(l -> l.getProduct().getSeller().getUser().getId().equals(user.getId())))
+                    .sorted((a, b) -> b.getDateCommande().compareTo(a.getDateCommande()))
+                    .map(orderMapper::toDto).collect(Collectors.toList());
+        }
+        throw new IllegalArgumentException("Accès réservé aux vendeurs ou administrateurs");
+    }
+
     private String generateOrderNumber() {
         return String.format("ORD-%d-%s", Year.now().getValue(),
                 UUID.randomUUID().toString().substring(0, 5).toUpperCase());

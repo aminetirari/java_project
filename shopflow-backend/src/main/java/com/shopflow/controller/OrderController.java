@@ -69,6 +69,12 @@ public class OrderController {
         return ResponseEntity.ok(orderService.getAllOrders());
     }
 
+    @GetMapping("/sales")
+    @PreAuthorize("hasAnyRole('SELLER','ADMIN')")
+    public ResponseEntity<List<OrderDTO>> getMySales(@AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(orderService.getSalesForUser(userDetails.getUsername()));
+    }
+
     @lombok.Data
     public static class CreateOrderRequest {
         private Long addressId;
