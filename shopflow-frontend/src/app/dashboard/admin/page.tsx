@@ -80,7 +80,7 @@ export default function AdminDashboardPage() {
       label: "Produits en stock faible (≤ 5)",
       value: data.nbProduitsStockFaible ?? 0,
       tone: "bg-indigo-50 text-indigo-700",
-      href: "/catalog",
+      href: "/dashboard/admin/stock",
     },
   ];
 

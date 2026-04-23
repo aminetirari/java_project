@@ -102,6 +102,13 @@ public class ProductService {
     }
 
     @Transactional(readOnly = true)
+    public List<ProductDTO> getLowStock(int threshold) {
+        return productRepository.findByActifTrueAndStockLessThanEqualOrderByStockAsc(threshold).stream()
+                .map(productMapper::toDto)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
     public List<ProductDTO> getProductsBySeller(Long sellerId) {
         return productRepository.findBySellerIdAndActifTrue(sellerId).stream()
                 .map(productMapper::toDto)
