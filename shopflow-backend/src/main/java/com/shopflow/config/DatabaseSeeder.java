@@ -7,10 +7,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
@@ -30,6 +33,7 @@ public class DatabaseSeeder implements CommandLineRunner {
     public void run(String... args) throws Exception {
         if (userRepository.count() > 0) {
             log.info("Base de données déjà initialisée.");
+            fixBrokenProductImages();
             return;
         }
 
@@ -135,7 +139,7 @@ public class DatabaseSeeder implements CommandLineRunner {
                 .stock(8)
                 .seller(techStore)
                 .categories(List.of(gaming))
-                .images(List.of("https://images.unsplash.com/photo-1606813909355-008a1c3ebfd4?auto=format&fit=crop&w=1000&q=80"))
+                .images(List.of("https://images.unsplash.com/photo-1621259182978-fbf93132d53d?auto=format&fit=crop&w=1000&q=80"))
                 .build();
 
         Product smartphone = Product.builder()
@@ -221,5 +225,38 @@ public class DatabaseSeeder implements CommandLineRunner {
 
         log.info("Initialisation terminée : {} utilisateurs, {} produits, {} coupons, {} avis.",
                 userRepository.count(), productRepository.count(), couponRepository.count(), reviewRepository.count());
+    }
+
+    /**
+     * Remplace des URLs d'images cassées connues (Unsplash 404 sur certaines photos)
+     * par des URLs équivalentes qui répondent 200. Idempotent : ne touche au produit
+     * que si l'URL cassée est encore présente.
+     */
+    @Transactional
+    void fixBrokenProductImages() {
+        Map<String, String> replacements = Map.of(
+                "https://images.unsplash.com/photo-1606813909355-008a1c3ebfd4?auto=format&fit=crop&w=1000&q=80",
+                "https://images.unsplash.com/photo-1621259182978-fbf93132d53d?auto=format&fit=crop&w=1000&q=80"
+        );
+        for (Product product : productRepository.findAll()) {
+            List<String> images = product.getImages();
+            if (images == null || images.isEmpty()) continue;
+            boolean changed = false;
+            List<String> updated = new ArrayList<>(images.size());
+            for (String url : images) {
+                String replacement = replacements.get(url);
+                if (replacement != null) {
+                    updated.add(replacement);
+                    changed = true;
+                } else {
+                    updated.add(url);
+                }
+            }
+            if (changed) {
+                product.setImages(updated);
+                productRepository.save(product);
+                log.info("Image corrigée pour le produit « {} »", product.getNom());
+            }
+        }
     }
 }
