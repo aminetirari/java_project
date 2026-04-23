@@ -6,7 +6,7 @@ spring:
       max-file-size: 5MB
       max-request-size: 20MB
   datasource:
-    url: jdbc:h2:mem:shopflow;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    url: jdbc:h2:file:${app.h2.path:./data/shopflow};DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
     driverClassName: org.h2.Driver
     username: sa
     password: password
