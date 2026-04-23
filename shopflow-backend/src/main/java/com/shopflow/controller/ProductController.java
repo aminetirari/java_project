@@ -60,6 +60,13 @@ public class ProductController {
         return ResponseEntity.ok(productService.getTopSelling());
     }
 
+    @GetMapping("/low-stock")
+    @PreAuthorize("hasAnyRole('ADMIN','SELLER')")
+    public ResponseEntity<List<ProductDTO>> getLowStock(
+            @RequestParam(required = false, defaultValue = "5") int threshold) {
+        return ResponseEntity.ok(productService.getLowStock(threshold));
+    }
+
     @GetMapping("/by-seller/{sellerId}")
     public ResponseEntity<List<ProductDTO>> getBySeller(@PathVariable Long sellerId) {
         return ResponseEntity.ok(productService.getProductsBySeller(sellerId));

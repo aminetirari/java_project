@@ -39,4 +39,6 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     List<Product> findTop10BySellerIdAndActifTrueAndStockLessThanEqualOrderByStockAsc(Long sellerId, Integer threshold);
 
     long countByActifTrueAndStockLessThanEqual(Integer threshold);
+
+    List<Product> findByActifTrueAndStockLessThanEqualOrderByStockAsc(Integer threshold);
 }
