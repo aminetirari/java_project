@@ -37,4 +37,6 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     long countLowStockBySeller(@Param("sellerId") Long sellerId, @Param("threshold") Integer threshold);
 
     List<Product> findTop10BySellerIdAndActifTrueAndStockLessThanEqualOrderByStockAsc(Long sellerId, Integer threshold);
+
+    long countByActifTrueAndStockLessThanEqual(Integer threshold);
 }
