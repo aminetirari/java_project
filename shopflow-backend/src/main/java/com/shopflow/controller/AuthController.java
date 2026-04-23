@@ -1,7 +1,9 @@
 package com.shopflow.controller;
 
+import com.shopflow.dto.ForgotPasswordRequestDTO;
 import com.shopflow.dto.JwtResponseDTO;
 import com.shopflow.dto.LoginRequestDTO;
+import com.shopflow.dto.ResetPasswordRequestDTO;
 import com.shopflow.dto.UserCreateDTO;
 import com.shopflow.dto.UserDTO;
 import com.shopflow.entity.User;
@@ -10,6 +12,7 @@ import com.shopflow.mapper.UserMapper;
 import com.shopflow.repository.UserRepository;
 import com.shopflow.security.JwtUtils;
 import com.shopflow.security.UserDetailsImpl;
+import com.shopflow.service.PasswordResetService;
 import com.shopflow.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +43,7 @@ public class AuthController {
     private final UserMapper userMapper;
     private final PasswordEncoder encoder;
     private final JwtUtils jwtUtils;
+    private final PasswordResetService passwordResetService;
 
     @PostMapping("/login")
     public ResponseEntity<JwtResponseDTO> authenticateUser(@Valid @RequestBody LoginRequestDTO loginRequest) {
@@ -104,5 +108,20 @@ public class AuthController {
         User user = userRepository.findByEmail(userDetails.getUsername())
                 .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
         return ResponseEntity.ok(userMapper.toDto(user));
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@Valid @RequestBody ForgotPasswordRequestDTO request) {
+        java.util.Optional<String> token = passwordResetService.createToken(request.getEmail());
+        Map<String, Object> body = new java.util.HashMap<>();
+        body.put("message", "Si un compte existe pour cet email, un lien de réinitialisation a été envoyé.");
+        token.ifPresent(t -> body.put("devToken", t));
+        return ResponseEntity.ok(body);
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@Valid @RequestBody ResetPasswordRequestDTO request) {
+        passwordResetService.reset(request.getToken(), request.getMotDePasse());
+        return ResponseEntity.ok(Map.of("message", "Mot de passe réinitialisé avec succès."));
     }
 }
