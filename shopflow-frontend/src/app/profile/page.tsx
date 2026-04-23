@@ -39,9 +39,17 @@ export default function ProfilePage() {
           </h1>
           <p className="text-sm text-slate-500">{user?.email}</p>
         </div>
-        <span className="badge bg-indigo-50 text-indigo-700 ring-1 ring-indigo-100">
-          {user?.role ?? ""}
-        </span>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/profile/reviews"
+            className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-sm font-medium text-indigo-700 hover:bg-indigo-100"
+          >
+            Mes avis
+          </Link>
+          <span className="badge bg-indigo-50 text-indigo-700 ring-1 ring-indigo-100">
+            {user?.role ?? ""}
+          </span>
+        </div>
       </div>
 
       <section>

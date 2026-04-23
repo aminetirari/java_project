@@ -2,6 +2,7 @@ package com.shopflow.controller;
 
 import com.shopflow.dto.ReviewCreateDTO;
 import com.shopflow.dto.ReviewDTO;
+import com.shopflow.dto.ReviewableItemDTO;
 import com.shopflow.service.ReviewService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -60,6 +61,12 @@ public class ReviewController {
     @GetMapping("/reviews/my")
     public ResponseEntity<List<ReviewDTO>> myReviews(@AuthenticationPrincipal UserDetails userDetails) {
         return ResponseEntity.ok(reviewService.getMyReviews(userDetails.getUsername()));
+    }
+
+    @GetMapping("/reviews/reviewable")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<List<ReviewableItemDTO>> reviewable(@AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(reviewService.getReviewable(userDetails.getUsername()));
     }
 
     @PutMapping("/reviews/{id}/approve")
