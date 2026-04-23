@@ -21,4 +21,11 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
 
     @Query("SELECT COALESCE(AVG(r.note), 0) FROM Review r WHERE r.product.id = :productId AND r.approuve = true")
     Double averageNoteForProduct(Long productId);
+
+    long countByApprouveFalse();
+
+    @Query("SELECT COALESCE(AVG(r.note), 0) FROM Review r WHERE r.product.seller.id = :sellerId AND r.approuve = true")
+    Double averageNoteForSeller(Long sellerId);
+
+    long countByProductSellerIdAndApprouveTrue(Long sellerId);
 }
