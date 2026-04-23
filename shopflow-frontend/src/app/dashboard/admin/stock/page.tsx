@@ -30,6 +30,7 @@ export default function AdminLowStockPage() {
       return;
     }
     setLoading(true);
+    setError(null);
     api
       .get<Product[]>(`/products/low-stock`, { params: { threshold } })
       .then((r) => setProducts(r.data))
