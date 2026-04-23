@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { api, extractErrorMessage } from "@/lib/api";
@@ -14,10 +14,9 @@ import { useAuthStore } from "@/store/authStore";
 export default function ProductDetailPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }) {
-  const { id } = use(params);
-  const productId = Number(id);
+  const productId = Number(params.id);
   const token = useAuthStore((s) => s.token);
   const hasRole = useAuthStore((s) => s.hasRole);
 
