@@ -33,6 +33,7 @@ export default function DashboardLayout({
     { href: "/dashboard", label: "Vue d'ensemble", show: true },
     { href: "/dashboard/seller", label: "Mon activité vendeur", show: isSeller },
     { href: "/dashboard/products", label: "Mes produits", show: isSeller },
+    { href: "/dashboard/orders", label: isAdmin ? "Toutes les commandes" : "Mes commandes", show: isSeller || isAdmin },
     { href: "/dashboard/admin", label: "Administration", show: isAdmin },
     { href: "/dashboard/admin/users", label: "Utilisateurs", show: isAdmin },
     { href: "/dashboard/admin/reviews", label: "Modération avis", show: isAdmin },
