@@ -47,9 +47,15 @@ export default function DashboardOrderDetailPage({
 
   const changeStatus = async (status: OrderStatus) => {
     if (!order || status === order.status) return;
+    if (status === "CANCELLED") {
+      if (!confirm("Annuler cette commande ? Les stocks seront restaurés.")) return;
+    }
     setBusy(true);
     try {
-      const { data } = await api.put<Order>(`/orders/${order.id}/status`, { status });
+      const { data } =
+        status === "CANCELLED"
+          ? await api.put<Order>(`/orders/${order.id}/cancel`)
+          : await api.put<Order>(`/orders/${order.id}/status`, { status });
       setOrder(data);
     } catch (err) {
       setError(extractErrorMessage(err));
