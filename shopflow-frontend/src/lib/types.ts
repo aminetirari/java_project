@@ -97,10 +97,21 @@ export type OrderStatus =
 export interface OrderItem {
   id: number;
   productId: number;
+  productNom?: string;
   variantId?: number;
   quantite: number;
   prixUnitaire: number;
   sousTotal: number;
+}
+
+export interface ReviewableItem {
+  productId: number;
+  productNom: string;
+  productImage?: string;
+  orderId: number;
+  numeroCommande: string;
+  dateCommande: string;
+  orderStatus: OrderStatus;
 }
 
 export interface Order {

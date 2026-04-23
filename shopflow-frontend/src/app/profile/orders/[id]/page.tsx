@@ -9,6 +9,7 @@ import { useAuthStore } from "@/store/authStore";
 import Loader from "@/components/Loader";
 import ErrorBox from "@/components/ErrorBox";
 import OrderStatusBadge from "@/components/OrderStatusBadge";
+import OrderTimeline from "@/components/OrderTimeline";
 
 export default function OrderDetailPage({
   params,
@@ -37,7 +38,7 @@ export default function OrderDetailPage({
 
   const cancel = async () => {
     if (!order) return;
-    if (!confirm("Annuler cette commande ?")) return;
+    if (!confirm("Annuler cette commande ? Les stocks seront restaurés.")) return;
     setBusy(true);
     try {
       const { data } = await api.put<Order>(`/orders/${order.id}/cancel`);
@@ -62,12 +63,16 @@ export default function OrderDetailPage({
     );
 
   const canCancel = ["PENDING", "PAID", "PAYE"].includes(order.status);
+  const canReview = ["PAID", "PAYE", "PROCESSING", "SHIPPED", "DELIVERED"].includes(
+    order.status
+  );
 
   return (
     <div className="space-y-6">
       <Link href="/profile" className="text-sm text-slate-500 hover:text-indigo-600">
         ← Retour à mes commandes
       </Link>
+
       <div className="card flex flex-wrap items-center justify-between gap-3 p-6">
         <div>
           <h1 className="text-2xl font-bold">{order.numeroCommande}</h1>
@@ -77,6 +82,13 @@ export default function OrderDetailPage({
         </div>
         <OrderStatusBadge status={order.status} />
       </div>
+
+      <section className="card p-6">
+        <h2 className="mb-5 text-sm font-semibold uppercase tracking-wide text-slate-500">
+          Suivi de commande
+        </h2>
+        <OrderTimeline status={order.status} />
+      </section>
 
       <div className="card overflow-hidden">
         <table className="w-full text-sm">
@@ -91,7 +103,14 @@ export default function OrderDetailPage({
           <tbody>
             {order.lignes.map((l) => (
               <tr key={l.id} className="border-t border-slate-200">
-                <td className="px-4 py-3">#{l.productId}</td>
+                <td className="px-4 py-3">
+                  <Link
+                    href={`/products/${l.productId}`}
+                    className="font-medium text-slate-900 hover:text-indigo-600"
+                  >
+                    {l.productNom ?? `Produit #${l.productId}`}
+                  </Link>
+                </td>
                 <td className="px-4 py-3 text-center">{l.quantite}</td>
                 <td className="px-4 py-3 text-right">
                   {l.prixUnitaire.toFixed(2)} €
@@ -130,11 +149,18 @@ export default function OrderDetailPage({
         </div>
       </div>
 
-      {canCancel && (
-        <button type="button" className="btn-danger" disabled={busy} onClick={cancel}>
-          Annuler la commande
-        </button>
-      )}
+      <div className="flex flex-wrap gap-3">
+        {canReview && (
+          <Link href="/profile/reviews" className="btn-primary">
+            Laisser un avis sur ces produits
+          </Link>
+        )}
+        {canCancel && (
+          <button type="button" className="btn-danger" disabled={busy} onClick={cancel}>
+            {busy ? "Annulation..." : "Annuler la commande"}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
