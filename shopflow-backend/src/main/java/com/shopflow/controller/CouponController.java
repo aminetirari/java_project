@@ -43,6 +43,13 @@ public class CouponController {
         return new ResponseEntity<>(couponService.createCoupon(createDTO), HttpStatus.CREATED);
     }
 
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<CouponDTO> updateCoupon(@PathVariable Long id,
+                                                  @Valid @RequestBody CouponCreateDTO updateDTO) {
+        return ResponseEntity.ok(couponService.updateCoupon(id, updateDTO));
+    }
+
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteCoupon(@PathVariable Long id) {

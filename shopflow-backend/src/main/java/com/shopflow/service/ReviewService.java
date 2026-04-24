@@ -31,7 +31,7 @@ import java.util.Set;
 public class ReviewService {
 
     private static final Set<OrderStatus> REVIEWABLE_STATUSES =
-            EnumSet.of(OrderStatus.PAID, OrderStatus.PAYE, OrderStatus.PROCESSING, OrderStatus.SHIPPED, OrderStatus.DELIVERED);
+            EnumSet.of(OrderStatus.PAID, OrderStatus.PROCESSING, OrderStatus.SHIPPED, OrderStatus.DELIVERED);
 
     private final ReviewRepository reviewRepository;
     private final ProductRepository productRepository;

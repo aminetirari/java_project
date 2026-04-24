@@ -48,6 +48,25 @@ public class CouponService {
     }
 
     @Transactional
+    public CouponDTO updateCoupon(Long id, CouponCreateDTO updateDTO) {
+        Coupon coupon = couponRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Coupon introuvable"));
+
+        if (!coupon.getCode().equals(updateDTO.getCode())
+                && couponRepository.findByCode(updateDTO.getCode()).isPresent()) {
+            throw new IllegalStateException("Ce code de coupon existe déjà");
+        }
+
+        coupon.setCode(updateDTO.getCode());
+        coupon.setType(updateDTO.getType());
+        coupon.setValeur(updateDTO.getValeur());
+        coupon.setDateExpiration(updateDTO.getDateExpiration());
+        coupon.setUsagesMax(updateDTO.getUsagesMax());
+
+        return couponMapper.toDto(couponRepository.save(coupon));
+    }
+
+    @Transactional
     public void deleteCoupon(Long id) {
         Coupon coupon = couponRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Coupon introuvable"));

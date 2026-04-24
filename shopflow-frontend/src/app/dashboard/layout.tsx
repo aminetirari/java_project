@@ -1,30 +1,25 @@
 "use client";
 
+import AuthGuard from "@/components/AuthGuard";
 import { useAuthStore } from "@/store/authStore";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { user, roles, hasRole } = useAuthStore();
-  const router = useRouter();
+  return (
+    <AuthGuard roles={["SELLER", "ADMIN"]}>
+      <DashboardShell>{children}</DashboardShell>
+    </AuthGuard>
+  );
+}
+
+function DashboardShell({ children }: { children: React.ReactNode }) {
+  const { hasRole } = useAuthStore();
   const pathname = usePathname();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-    if (!user) {
-      router.replace("/login?redirect=/dashboard");
-    } else if (!hasRole("SELLER") && !hasRole("ADMIN")) {
-      router.replace("/");
-    }
-  }, [user, roles, hasRole, router]);
-
-  if (!mounted || !user) return <div className="p-8 text-center">Chargement...</div>;
 
   const isAdmin = hasRole("ADMIN");
   const isSeller = hasRole("SELLER");
