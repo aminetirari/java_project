@@ -82,7 +82,7 @@ public class StripePaymentService {
         PaymentIntent paymentIntent = PaymentIntent.retrieve(order.getPaymentIntentId());
 
         if ("succeeded".equals(paymentIntent.getStatus())) {
-            order.setStatut(OrderStatus.PAYE);
+            order.setStatut(OrderStatus.PAID);
             orderRepository.save(order);
         } else {
             throw new IllegalStateException("Le paiement n'est pas encore validé. Statut : " + paymentIntent.getStatus());

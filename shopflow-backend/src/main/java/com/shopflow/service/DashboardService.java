@@ -58,7 +58,6 @@ public class DashboardService {
 
         long nbEnCours = orderRepository.countByStatut(OrderStatus.PROCESSING)
                 + orderRepository.countByStatut(OrderStatus.PAID)
-                + orderRepository.countByStatut(OrderStatus.PAYE)
                 + orderRepository.countByStatut(OrderStatus.PENDING);
 
         Map<String, Object> data = new LinkedHashMap<>();
@@ -124,8 +123,7 @@ public class DashboardService {
         BigDecimal panierMoyen = orderRepository.averageOrderValueBySeller(seller.getId());
 
         long commandesEnAttente = orderRepository.countBySellerAndStatut(seller.getId(), OrderStatus.PENDING)
-                + orderRepository.countBySellerAndStatut(seller.getId(), OrderStatus.PAID)
-                + orderRepository.countBySellerAndStatut(seller.getId(), OrderStatus.PAYE);
+                + orderRepository.countBySellerAndStatut(seller.getId(), OrderStatus.PAID);
 
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("revenus", revenus);
