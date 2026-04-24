@@ -9,10 +9,14 @@ import com.shopflow.exception.ResourceNotFoundException;
 import com.shopflow.mapper.ProductMapper;
 import com.shopflow.repository.CategoryRepository;
 import com.shopflow.repository.ProductRepository;
+import com.shopflow.repository.ReviewRepository;
 import com.shopflow.repository.SellerProfileRepository;
 import com.shopflow.repository.UserRepository;
+import com.shopflow.entity.Review;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -26,7 +30,11 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -37,6 +45,7 @@ public class ProductService {
     private final CategoryRepository categoryRepository;
     private final SellerProfileRepository sellerProfileRepository;
     private final UserRepository userRepository;
+    private final ReviewRepository reviewRepository;
     private final ProductMapper productMapper;
     private final FileStorageService fileStorageService;
 
@@ -47,7 +56,8 @@ public class ProductService {
 
     @Transactional(readOnly = true)
     public Page<ProductDTO> search(String q, Long categoryId, Long sellerId, Double prixMin,
-                                   Double prixMax, Boolean promo, String sort, int page, int size) {
+                                   Double prixMax, Boolean promo, Double noteMin,
+                                   String sort, int page, int size) {
         Sort springSort = parseSort(sort);
         Pageable pageable = PageRequest.of(page, size, springSort);
 
@@ -78,12 +88,51 @@ public class ProductService {
             if (Boolean.TRUE.equals(promo)) {
                 preds.add(cb.isNotNull(root.get("prixPromo")));
             }
+            if (noteMin != null && noteMin > 0 && query != null) {
+                Subquery<Double> avgSub = query.subquery(Double.class);
+                Root<Review> rev = avgSub.from(Review.class);
+                avgSub.select(cb.avg(rev.get("note")).as(Double.class));
+                avgSub.where(cb.and(
+                        cb.equal(rev.get("product"), root),
+                        cb.isTrue(rev.get("approuve"))
+                ));
+                preds.add(cb.greaterThanOrEqualTo(avgSub, noteMin));
+            }
             return cb.and(preds.toArray(new Predicate[0]));
         };
 
         Page<Product> pageResult = productRepository.findAll(spec, pageable);
         List<ProductDTO> dtos = productMapper.toDtoList(pageResult.getContent());
+        enrichWithRatings(dtos);
         return new PageImpl<>(dtos, pageable, pageResult.getTotalElements());
+    }
+
+    private void enrichWithRatings(List<ProductDTO> dtos) {
+        if (dtos == null || dtos.isEmpty()) return;
+        List<Long> ids = dtos.stream().map(ProductDTO::getId).collect(Collectors.toList());
+        Map<Long, double[]> agg = fetchRatingAggregates(ids);
+        dtos.forEach(dto -> {
+            double[] v = agg.get(dto.getId());
+            if (v != null) {
+                dto.setNoteMoyenne(v[0]);
+                dto.setNbAvis((int) v[1]);
+            } else {
+                dto.setNoteMoyenne(0.0);
+                dto.setNbAvis(0);
+            }
+        });
+    }
+
+    private Map<Long, double[]> fetchRatingAggregates(Collection<Long> ids) {
+        if (ids == null || ids.isEmpty()) return Collections.emptyMap();
+        Map<Long, double[]> map = new HashMap<>();
+        for (Object[] row : reviewRepository.findAggregatesByProductIds(ids)) {
+            Long id = ((Number) row[0]).longValue();
+            double avg = row[1] == null ? 0.0 : ((Number) row[1]).doubleValue();
+            double count = row[2] == null ? 0.0 : ((Number) row[2]).doubleValue();
+            map.put(id, new double[]{avg, count});
+        }
+        return map;
     }
 
     @Transactional(readOnly = true)
@@ -130,7 +179,9 @@ public class ProductService {
     public ProductDTO getProductById(Long id) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Produit non trouvé avec id: " + id));
-        return productMapper.toDto(product);
+        ProductDTO dto = productMapper.toDto(product);
+        enrichWithRatings(List.of(dto));
+        return dto;
     }
 
     @Transactional
