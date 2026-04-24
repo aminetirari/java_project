@@ -72,17 +72,9 @@ function LoginForm() {
             />
           </div>
           <div>
-            <div className="mb-1 flex items-center justify-between">
-              <label className="block text-sm font-medium text-slate-700">
-                Mot de passe
-              </label>
-              <Link
-                href="/forgot-password"
-                className="text-xs font-medium text-indigo-600 hover:underline"
-              >
-                Mot de passe oublié ?
-              </Link>
-            </div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">
+              Mot de passe
+            </label>
             <input
               className="input"
               type="password"
@@ -91,6 +83,14 @@ function LoginForm() {
               required
               autoComplete="current-password"
             />
+            <div className="mt-1.5 flex justify-end">
+              <Link
+                href="/forgot-password"
+                className="text-xs font-medium text-indigo-600 hover:underline"
+              >
+                Mot de passe oublié ?
+              </Link>
+            </div>
           </div>
           <button type="submit" disabled={busy} className="btn-primary w-full">
             {busy ? "Connexion..." : "Se connecter"}
