@@ -30,6 +30,7 @@ public class DatabaseSeeder implements CommandLineRunner {
     private final PasswordEncoder passwordEncoder;
 
     @Override
+    @Transactional
     public void run(String... args) throws Exception {
         if (userRepository.count() > 0) {
             log.info("Base de données déjà initialisée.");
@@ -230,9 +231,10 @@ public class DatabaseSeeder implements CommandLineRunner {
     /**
      * Remplace des URLs d'images cassées connues (Unsplash 404 sur certaines photos)
      * par des URLs équivalentes qui répondent 200. Idempotent : ne touche au produit
-     * que si l'URL cassée est encore présente.
+     * que si l'URL cassée est encore présente. La transaction est ouverte par
+     * l'appelant ({@link #run(String...)}) car l'auto-invocation ne passe pas par
+     * le proxy Spring.
      */
-    @Transactional
     void fixBrokenProductImages() {
         Map<String, String> replacements = Map.of(
                 "https://images.unsplash.com/photo-1606813909355-008a1c3ebfd4?auto=format&fit=crop&w=1000&q=80",
