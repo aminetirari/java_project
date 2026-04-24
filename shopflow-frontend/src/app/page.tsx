@@ -59,6 +59,46 @@ export default async function Home() {
         <div className="pointer-events-none absolute -bottom-16 -right-24 h-80 w-80 rounded-full bg-violet-400/30 blur-3xl" />
       </section>
 
+      <section
+        aria-labelledby="promo-banner"
+        className="flex flex-col items-center gap-4 rounded-2xl border border-indigo-200 bg-indigo-50 px-6 py-5 text-slate-900 sm:flex-row sm:justify-between sm:px-8"
+      >
+        <div className="flex items-center gap-4">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white shadow-sm">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-6 w-6"
+            >
+              <path d="M20.59 13.41 11 22.99l-9-9V3h11l7.59 7.59a2 2 0 0 1 0 2.82Z" />
+              <circle cx="7" cy="7" r="1.5" fill="currentColor" stroke="none" />
+            </svg>
+          </span>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-indigo-700">
+              Offre de bienvenue
+            </p>
+            <h2 id="promo-banner" className="text-lg font-bold leading-tight sm:text-xl">
+              -10 % sur votre première commande avec{" "}
+              <span className="font-mono text-indigo-700">BIENVENUE10</span>
+            </h2>
+            <p className="mt-0.5 text-sm text-slate-600">
+              Livraison offerte dès 50 €. Valable sur tout le catalogue.
+            </p>
+          </div>
+        </div>
+        <Link
+          href="/products?promo=true"
+          className="btn bg-indigo-600 text-white hover:bg-indigo-700"
+        >
+          Voir les promos
+        </Link>
+      </section>
+
       {cats.length > 0 && (
         <section>
           <div className="mb-4 flex items-center justify-between">

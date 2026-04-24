@@ -36,10 +36,12 @@ public class ProductController {
             @RequestParam(required = false) Double prixMin,
             @RequestParam(required = false) Double prixMax,
             @RequestParam(required = false) Boolean promo,
+            @RequestParam(required = false) Double noteMin,
             @RequestParam(required = false, defaultValue = "newest") String sort,
             @RequestParam(required = false, defaultValue = "0") int page,
             @RequestParam(required = false, defaultValue = "12") int size) {
-        return ResponseEntity.ok(productService.search(q, categoryId, sellerId, prixMin, prixMax, promo, sort, page, size));
+        return ResponseEntity.ok(productService.search(
+                q, categoryId, sellerId, prixMin, prixMax, promo, noteMin, sort, page, size));
     }
 
     @GetMapping("/all")

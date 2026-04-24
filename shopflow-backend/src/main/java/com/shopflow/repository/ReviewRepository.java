@@ -3,8 +3,10 @@ package com.shopflow.repository;
 import com.shopflow.entity.Review;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 
 @Repository
@@ -28,4 +30,9 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
     Double averageNoteForSeller(Long sellerId);
 
     long countByProductSellerIdAndApprouveTrue(Long sellerId);
+
+    @Query("SELECT r.product.id, AVG(r.note), COUNT(r) FROM Review r " +
+            "WHERE r.product.id IN :ids AND r.approuve = true " +
+            "GROUP BY r.product.id")
+    List<Object[]> findAggregatesByProductIds(@Param("ids") Collection<Long> ids);
 }

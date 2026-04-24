@@ -18,6 +18,7 @@ function ProductsContent() {
   const prixMin = searchParams.get("prixMin") ?? "";
   const prixMax = searchParams.get("prixMax") ?? "";
   const promo = searchParams.get("promo") === "true";
+  const noteMin = searchParams.get("noteMin") ?? "";
   const sort = searchParams.get("sort") ?? "newest";
   const page = Number(searchParams.get("page") ?? "0");
 
@@ -39,11 +40,12 @@ function ProductsContent() {
     if (prixMin) p.set("prixMin", prixMin);
     if (prixMax) p.set("prixMax", prixMax);
     if (promo) p.set("promo", "true");
+    if (noteMin) p.set("noteMin", noteMin);
     if (sort) p.set("sort", sort);
     p.set("page", String(page));
     p.set("size", "12");
     return p.toString();
-  }, [q, categoryId, prixMin, prixMax, promo, sort, page]);
+  }, [q, categoryId, prixMin, prixMax, promo, noteMin, sort, page]);
 
   useEffect(() => {
     api.get<Category[]>("/categories").then((r) => setCategories(r.data)).catch(() => {});
@@ -148,6 +150,36 @@ function ProductsContent() {
             />
             Promotions uniquement
           </label>
+
+          <div>
+            <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">
+              Note minimum
+            </label>
+            <div className="flex flex-col gap-1">
+              {[
+                { v: "", label: "Toutes les notes" },
+                { v: "4", label: "4 \u2605 et plus" },
+                { v: "3", label: "3 \u2605 et plus" },
+                { v: "2", label: "2 \u2605 et plus" },
+                { v: "1", label: "1 \u2605 et plus" },
+              ].map((opt) => (
+                <label
+                  key={opt.v || "all"}
+                  className="flex cursor-pointer items-center gap-2 text-sm text-slate-700"
+                >
+                  <input
+                    type="radio"
+                    name="noteMin"
+                    value={opt.v}
+                    checked={noteMin === opt.v}
+                    onChange={() => updateFilter({ noteMin: opt.v || null })}
+                    className="h-4 w-4 border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span>{opt.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
 
           <button type="submit" className="btn-primary w-full">
             Appliquer
