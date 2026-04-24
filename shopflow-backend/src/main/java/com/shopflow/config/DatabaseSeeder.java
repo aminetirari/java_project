@@ -140,7 +140,7 @@ public class DatabaseSeeder implements CommandLineRunner {
                 .stock(8)
                 .seller(techStore)
                 .categories(List.of(gaming))
-                .images(List.of("https://images.unsplash.com/photo-1621259182978-fbf93132d53d?auto=format&fit=crop&w=1000&q=80"))
+                .images(List.of("https://upload.wikimedia.org/wikipedia/commons/thumb/0/00/PlayStation_5_and_DualSense.jpg/960px-PlayStation_5_and_DualSense.jpg"))
                 .build();
 
         Product smartphone = Product.builder()
@@ -236,9 +236,12 @@ public class DatabaseSeeder implements CommandLineRunner {
      * le proxy Spring.
      */
     void fixBrokenProductImages() {
+        String ps5Image = "https://upload.wikimedia.org/wikipedia/commons/thumb/0/00/PlayStation_5_and_DualSense.jpg/960px-PlayStation_5_and_DualSense.jpg";
         Map<String, String> replacements = Map.of(
-                "https://images.unsplash.com/photo-1606813909355-008a1c3ebfd4?auto=format&fit=crop&w=1000&q=80",
-                "https://images.unsplash.com/photo-1621259182978-fbf93132d53d?auto=format&fit=crop&w=1000&q=80"
+                // Unsplash 404 (aucune image)
+                "https://images.unsplash.com/photo-1606813909355-008a1c3ebfd4?auto=format&fit=crop&w=1000&q=80", ps5Image,
+                // Unsplash mais c'est une Xbox, pas une PS5
+                "https://images.unsplash.com/photo-1621259182978-fbf93132d53d?auto=format&fit=crop&w=1000&q=80", ps5Image
         );
         for (Product product : productRepository.findAll()) {
             List<String> images = product.getImages();
