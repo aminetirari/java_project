@@ -27,11 +27,13 @@ export default function AuthGuard({
   useEffect(() => {
     setMounted(true);
     if (!user) {
+      setAuthorized(false);
       const target = `${redirectTo}?redirect=${encodeURIComponent(pathname ?? "/")}`;
       router.replace(target);
       return;
     }
     if (roles && roles.length > 0 && !roles.some((r) => hasRole(r))) {
+      setAuthorized(false);
       router.replace("/");
       return;
     }
